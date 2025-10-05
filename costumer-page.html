@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Purchase Receipt</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --success-color: #1cc88a;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --light-bg: #f8f9fc;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+        
+        .navbar {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .receipt-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #2a4cb3 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .receipt-body {
+            padding: 30px;
+        }
+        
+        .receipt-footer {
+            background-color: #f8f9fc;
+            padding: 20px 30px;
+            border-top: 1px dashed #ddd;
+        }
+        
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .receipt-table th {
+            border-bottom: 2px solid #ddd;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 700;
+        }
+        
+        .receipt-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .receipt-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .customer-info {
+            background-color: #f8f9fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            font-size: 1.1rem;
+            background-color: #f8f9fc;
+        }
+        
+        .print-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .search-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        .search-results {
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            position: absolute;
+            width: calc(100% - 30px);
+        }
+        
+        .search-result-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .search-result-item:hover {
+            background-color: #f8f9fc;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .search-input-container {
+            position: relative;
+        }
+        
+        .search-info {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .customer-match-highlight {
+            background-color: #fff3cd;
+            font-weight: bold;
+        }
+        
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .receipt-container {
+                box-shadow: none;
+                margin: 0;
+                max-width: 100%;
+                border: none;
+            }
+            
+            .print-controls {
+                display: none;
+            }
+            
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+            
+            .back-link {
+                display: none;
+            }
+            
+            /* Ensure proper page breaks */
+            .receipt-container {
+                page-break-inside: avoid;
+            }
+            
+            /* Improve print readability */
+            .receipt-table {
+                font-size: 12px;
+            }
+            
+            .receipt-header {
+                padding: 20px;
+            }
+            
+            .receipt-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark no-print">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-receipt me-2"></i>Customer Receipt Portal
+            </a>
+            <div class="d-flex">
+                <span class="navbar-text me-3">
+                    <span class="firebase-status firebase-connected" id="firebase-status"></span>
+                    <span id="connection-status">Connected to Firebase</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <!-- Search Interface -->
+        <div id="search-interface" class="no-print">
+            <div class="search-container">
+                <h2 class="text-center mb-4">Find Your Receipt</h2>
+                <p class="text-center mb-4">Enter your name or customer ID to view your purchase history</p>
+                
+                <div class="mb-3">
+                    <div class="search-input-container">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search-input" placeholder="Enter your name or customer ID">
+                            <button class="btn btn-primary" id="search-btn">
+                                <i class="fas fa-search me-2"></i> Search
+                            </button>
+                        </div>
+                        <div id="search-results" class="search-results" style="display: none;">
+                            <!-- Search results will appear here -->
+                        </div>
+                    </div>
+                    <div class="search-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Start typing to see matching customers. Click on your name to view your receipt.
+                    </div>
+                </div>
+                
+                <div id="search-error" class="alert alert-danger mt-3" style="display: none;">
+                    <!-- Error messages will appear here -->
+                </div>
+                
+                <div id="recent-customers" class="mt-4" style="display: none;">
+                    <h5 class="mb-3">Recent Searches</h5>
+                    <div id="recent-customers-list">
+                        <!-- Recent customers will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receipt Content -->
+        <div id="receipt-content" style="display: none;">
+            <!-- Receipt will be populated here -->
+        </div>
+    </div>
+
+    <!-- Print Controls -->
+    <div class="print-controls no-print" style="display: none;">
+        <div class="btn-group shadow">
+            <button class="btn btn-primary" id="print-btn">
+                <i class="fas fa-print me-2"></i> Print Receipt
+            </button>
+            <button class="btn btn-outline-primary" id="share-btn">
+                <i class="fas fa-share-alt me-2"></i> Share
+            </button>
+            <button class="btn btn-outline-secondary" id="new-search-btn">
+                <i class="fas fa-search me-2"></i> New Search
+            </button>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
+            authDomain: "hallow-2c7e6.firebaseapp.com",
+            projectId: "hallow-2c7e6",
+            storageBucket: "hallow-2c7e6.firebasestorage.app",
+            messagingSenderId: "310263322867",
+            appId: "1:310263322867:web:3a5338621e8b75c163ff86",
+            measurementId: "G-4P4D5W5PSE"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Customer Receipt Class
+        class CustomerReceipt {
+            constructor() {
+                this.customer = null;
+                this.purchases = [];
+                this.customerId = null;
+                this.allCustomers = [];
+                this.searchTimeout = null;
+                this.isSearching = false;
+                
+                this.init();
+            }
+            
+            async init() {
+                // Update connection status
+                this.updateConnectionStatus();
+                
+                // Preload all customers for faster search
+                await this.preloadCustomers();
+                
+                // Check if we have a customer ID in localStorage
+                this.customerId = localStorage.getItem('customerId');
+                
+                if (this.customerId) {
+                    // If we have a customer ID, try to load their data
+                    await this.loadCustomerData();
+                } else {
+                    // Otherwise, show the search interface
+                    this.showSearchInterface();
+                }
+                
+                // Set up event listeners
+                this.setupEventListeners();
+                
+                // Load recent searches
+                this.loadRecentSearches();
+            }
+            
+            updateConnectionStatus() {
+                const firebaseStatus = document.getElementById('firebase-status');
+                const connectionStatus = document.getElementById('connection-status');
+                
+                if (firebaseStatus && connectionStatus) {
+                    firebaseStatus.className = 'firebase-status firebase-connected';
+                    connectionStatus.textContent = 'Connected to Firebase';
+                }
+            }
+            
+            async preloadCustomers() {
+                try {
+                    const customersSnapshot = await db.collection('customers').get();
+                    this.allCustomers = customersSnapshot.docs.map(doc => ({ 
+                        id: doc.id, 
+                        ...doc.data() 
+                    }));
+                    console.log(`Preloaded ${this.allCustomers.length} customers`);
+                } catch (error) {
+                    console.error('Error preloading customers:', error);
+                }
+            }
+            
+            showSearchInterface() {
+                document.getElementById('search-interface').style.display = 'block';
+                document.getElementById('receipt-content').style.display = 'none';
+                document.querySelector('.print-controls').style.display = 'none';
+                
+                // Focus on search input
+                setTimeout(() => {
+                    document.getElementById('search-input').focus();
+                }, 100);
+            }
+            
+            showReceipt() {
+                document.getElementById('search-interface').style.display = 'none';
+                document.getElementById('receipt-content').style.display = 'block';
+                document.querySelector('.print-controls').style.display = 'block';
+            }
+            
+            async searchCustomers(query) {
+                if (this.isSearching) return;
+                
+                try {
+                    // Clear previous results and timeout
+                    clearTimeout(this.searchTimeout);
+                    
+                    // Hide results if query is empty
+                    if (!query || query.length < 2) {
+                        document.getElementById('search-results').style.display = 'none';
+                        return;
+                    }
+                    
+                    this.isSearching = true;
+                    
+                    // Show loading
+                    document.getElementById('search-results').innerHTML = `
+                        <div class="search-result-item text-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Searching...
+                        </div>
+                    `;
+                    document.getElementById('search-results').style.display = 'block';
+                    
+                    // Use timeout to debounce search
+                    this.searchTimeout = setTimeout(async () => {
+                        let results = [];
+                        
+                        // Search in preloaded customers first
+                        if (this.allCustomers.length > 0) {
+                            results = this.searchInPreloadedCustomers(query);
+                        } else {
+                            // Fallback to Firebase query if preloading failed
+                            results = await this.searchInFirebase(query);
+                        }
+                        
+                        this.displaySearchResults(results, query);
+                        this.isSearching = false;
+                    }, 300);
+                    
+                } catch (error) {
+                    console.error('Error searching customers:', error);
+                    this.showSearchError("Error searching for customers: " + error.message);
+                    this.isSearching = false;
+                }
+            }
+            
+            searchInPreloadedCustomers(query) {
+                const lowerQuery = query.toLowerCase();
+                
+                return this.allCustomers.filter(customer => {
+                    const nameMatch = customer.name.toLowerCase().includes(lowerQuery);
+                    const idMatch = customer.id.toLowerCase().includes(lowerQuery);
+                    const emailMatch = customer.email && customer.email.toLowerCase().includes(lowerQuery);
+                    const phoneMatch = customer.phone && customer.phone.includes(query);
+                    
+                    return nameMatch || idMatch || emailMatch || phoneMatch;
+                });
+            }
+            
+            async searchInFirebase(query) {
+                const customersSnapshot = await db.collection('customers')
+                    .where('name', '>=', query)
+                    .where('name', '<=', query + '\uf8ff')
+                    .get();
+                
+                const customers = customersSnapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    ...doc.data() 
+                }));
+                
+                // Also search by ID
+                let idResults = [];
+                if (query.length >= 3) {
+                    try {
+                        const customerDoc = await db.collection('customers').doc(query).get();
+                        if (customerDoc.exists) {
+                            idResults.push({ id: customerDoc.id, ...customerDoc.data() });
+                        }
+                    } catch (error) {
+                        console.log('Error searching by ID:', error);
+                    }
+                }
+                
+                // Combine results and remove duplicates
+                const allResults = [...customers, ...idResults];
+                return allResults.filter((customer, index, self) => 
+                    index === self.findIndex(c => c.id === customer.id)
+                );
+            }
+            
+            displaySearchResults(customers, query) {
+                const resultsContainer = document.getElementById('search-results');
+                
+                if (customers.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="search-result-item text-center">
+                            No customers found. Please try a different search term.
+                        </div>
+                    `;
+                    resultsContainer.style.display = 'block';
+                    return;
+                }
+                
+                let resultsHtml = '';
+                const lowerQuery = query.toLowerCase();
+                
+                customers.slice(0, 10).forEach(customer => { // Limit to 10 results
+                    // Highlight matching parts
+                    const highlightedName = this.highlightMatch(customer.name, query);
+                    const highlightedId = this.highlightMatch(customer.id, query);
+                    
+                    resultsHtml += `
+                        <div class="search-result-item" data-customer-id="${customer.id}">
+                            <div class="fw-bold">${highlightedName}</div>
+                            <div class="small text-muted">ID: ${highlightedId}</div>
+                            <div class="small">${customer.email || 'No email'} | ${customer.phone || 'No phone'}</div>
+                        </div>
+                    `;
+                });
+                
+                if (customers.length > 10) {
+                    resultsHtml += `
+                        <div class="search-result-item text-center text-muted">
+                            +${customers.length - 10} more customers found
+                        </div>
+                    `;
+                }
+                
+                resultsContainer.innerHTML = resultsHtml;
+                resultsContainer.style.display = 'block';
+                
+                // Add click handlers to results
+                document.querySelectorAll('.search-result-item').forEach(item => {
+                    if (item.getAttribute('data-customer-id')) {
+                        item.addEventListener('click', () => {
+                            const customerId = item.getAttribute('data-customer-id');
+                            this.selectCustomer(customerId);
+                        });
+                    }
+                });
+            }
+            
+            highlightMatch(text, query) {
+                if (!text || !query) return text;
+                
+                const lowerText = text.toLowerCase();
+                const lowerQuery = query.toLowerCase();
+                const matchIndex = lowerText.indexOf(lowerQuery);
+                
+                if (matchIndex === -1) return text;
+                
+                const beforeMatch = text.substring(0, matchIndex);
+                const match = text.substring(matchIndex, matchIndex + query.length);
+                const afterMatch = text.substring(matchIndex + query.length);
+                
+                return `${beforeMatch}<span class="customer-match-highlight">${match}</span>${afterMatch}`;
+            }
+            
+            showSearchError(message) {
+                const errorContainer = document.getElementById('search-error');
+                errorContainer.innerHTML = message;
+                errorContainer.style.display = 'block';
+            }
+            
+            async selectCustomer(customerId) {
+                // Hide search results
+                document.getElementById('search-results').style.display = 'none';
+                
+                // Save customer ID to localStorage
+                localStorage.setItem('customerId', customerId);
+                
+                // Add to recent searches
+                this.addToRecentSearches(customerId);
+                
+                // Set customer ID and load data
+                this.customerId = customerId;
+                await this.loadCustomerData();
+            }
+            
+            addToRecentSearches(customerId) {
+                let recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+                
+                // Remove if already exists
+                recentSearches = recentSearches.filter(id => id !== customerId);
+                
+                // Add to beginning
+                recentSearches.unshift(customerId);
+                
+                // Keep only last 5
+                recentSearches = recentSearches.slice(0, 5);
+                
+                localStorage.setItem('recentSearches', JSON.stringify(recentSearches));
+                
+                // Update UI
+                this.loadRecentSearches();
+            }
+            
+            loadRecentSearches() {
+                const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+                const container = document.getElementById('recent-customers');
+                const list = document.getElementById('recent-customers-list');
+                
+                if (recentSearches.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+                
+                let html = '';
+                recentSearches.forEach(customerId => {
+                    const customer = this.allCustomers.find(c => c.id === customerId);
+                    if (customer) {
+                        html += `
+                            <div class="search-result-item mb-2" data-customer-id="${customer.id}">
+                                <div class="fw-bold">${customer.name}</div>
+                                <div class="small text-muted">ID: ${customer.id}</div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                list.innerHTML = html;
+                container.style.display = 'block';
+                
+                // Add click handlers
+                document.querySelectorAll('#recent-customers-list .search-result-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const customerId = item.getAttribute('data-customer-id');
+                        this.selectCustomer(customerId);
+                    });
+                });
+            }
+            
+            async loadCustomerData() {
+                try {
+                    // Show loading state
+                    this.showLoading();
+                    
+                    // Load customer
+                    const customerDoc = await db.collection('customers').doc(this.customerId).get();
+                    
+                    if (!customerDoc.exists) {
+                        this.showError("Customer not found in database");
+                        localStorage.removeItem('customerId');
+                        return;
+                    }
+                    
+                    this.customer = { id: customerDoc.id, ...customerDoc.data() };
+                    
+                    // Load customer's purchases
+                    const purchasesSnapshot = await db.collection('purchases')
+                        .where('customer_id', '==', this.customerId)
+                        .get();
+                    
+                    this.purchases = purchasesSnapshot.docs.map(doc => ({ 
+                        id: doc.id, 
+                        ...doc.data() 
+                    }));
+                    
+                    // Show receipt
+                    this.showReceipt();
+                    
+                    // Render receipt
+                    this.renderReceipt();
+                    
+                } catch (error) {
+                    console.error('Error loading customer data:', error);
+                    this.showError("Error loading customer data: " + error.message);
+                    localStorage.removeItem('customerId');
+                }
+            }
+            
+            renderReceipt() {
+                if (!this.customer) return;
+                
+                // Calculate totals
+                const totalSpent = this.purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+                const pendingPayments = this.purchases.filter(p => p.status !== 'paid').length;
+                const totalPurchases = this.purchases.length;
+                
+                let receiptHtml = `
+                    <div class="receipt-container">
+                        <div class="receipt-header">
+                            <h1><i class="fas fa-store me-2"></i>Hallow Business Solutions</h1>
+                            <p class="mb-0">Customer Purchase Receipt</p>
+                        </div>
+                        
+                        <div class="receipt-body">
+                            <div class="customer-info">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h4>${this.customer.name}</h4>
+                                        <p class="mb-1"><strong>Customer ID:</strong> ${this.customer.id}</p>
+                                        <p class="mb-1"><strong>Phone:</strong> ${this.customer.phone || 'N/A'}</p>
+                                        <p class="mb-0"><strong>Email:</strong> ${this.customer.email || 'N/A'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Member Since:</strong> ${new Date(this.customer.created_at).toLocaleDateString()}</p>
+                                        <p class="mb-1"><strong>Total Purchases:</strong> ${totalPurchases}</p>
+                                        <p class="mb-1"><strong>Total Spent:</strong> $${totalSpent.toFixed(2)}</p>
+                                        <p class="mb-0"><strong>Pending Payments:</strong> ${pendingPayments}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 class="mb-3">Purchase History</h4>
+                `;
+                
+                if (this.purchases.length === 0) {
+                    receiptHtml += `
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>No purchase history found for this customer.
+                        </div>
+                    `;
+                } else {
+                    // Sort purchases by date (newest first)
+                    this.purchases.sort((a, b) => new Date(b.purchase_date) - new Date(a.purchase_date));
+                    
+                    receiptHtml += `
+                        <div class="table-responsive">
+                            <table class="receipt-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Transaction ID</th>
+                                        <th>Items</th>
+                                        <th class="text-right">Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    this.purchases.forEach(purchase => {
+                        const products = JSON.parse(purchase.product_data || '[]');
+                        const productNames = products.map(p => `${p.name} (x${p.quantity})`).join(', ');
+                        
+                        receiptHtml += `
+                            <tr>
+                                <td>${new Date(purchase.purchase_date).toLocaleDateString()}</td>
+                                <td>${purchase.id.substring(0, 8)}...</td>
+                                <td>${productNames}</td>
+                                <td class="text-right">$${purchase.total_amount?.toFixed(2) || '0.00'}</td>
+                                <td>
+                                    <span class="badge ${purchase.status === 'paid' ? 'bg-success' : 'bg-warning'} status-badge">
+                                        ${purchase.status || 'pending'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    receiptHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                receiptHtml += `
+                        </div>
+                        
+                        <div class="receipt-footer">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                                    <p class="mb-0"><strong>Page URL:</strong> ${window.location.href}</p>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <p class="mb-1"><strong>Total Purchases:</strong> ${totalPurchases}</p>
+                                    <p class="mb-1"><strong>Total Amount:</strong> $${totalSpent.toFixed(2)}</p>
+                                    <p class="mb-0"><strong>Pending Payments:</strong> ${pendingPayments}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-center text-muted no-print">
+                        <small>This is an automated receipt. For questions, contact Hallow Business Solutions.</small>
+                    </div>
+                `;
+                
+                document.getElementById('receipt-content').innerHTML = receiptHtml;
+                
+                // Update page title
+                document.title = `Receipt - ${this.customer.name}`;
+            }
+            
+            showLoading() {
+                document.getElementById('receipt-content').innerHTML = `
+                    <div class="loading-spinner">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading customer receipt...</p>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('receipt-content').style.display = 'block';
+            }
+            
+            showError(message) {
+                document.getElementById('receipt-content').innerHTML = `
+                    <div class="error-message">
+                        <h4><i class="fas fa-exclamation-triangle me-2"></i>Error</h4>
+                        <p>${message}</p>
+                        <button class="btn btn-primary mt-2" id="back-to-search-btn">
+                            <i class="fas fa-search me-2"></i> Back to Search
+                        </button>
+                    </div>
+                `;
+                document.getElementById('receipt-content').style.display = 'block';
+                
+                // Add event listener to back button
+                document.getElementById('back-to-search-btn').addEventListener('click', () => {
+                    this.showSearchInterface();
+                });
+            }
+            
+            setupEventListeners() {
+                // Search input (real-time search)
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) {
+                    searchInput.addEventListener('input', (event) => {
+                        const query = event.target.value.trim();
+                        this.searchCustomers(query);
+                    });
+                    
+                    // Hide results when clicking outside
+                    document.addEventListener('click', (event) => {
+                        if (!event.target.closest('.search-input-container')) {
+                            document.getElementById('search-results').style.display = 'none';
+                        }
+                    });
+                }
+                
+                // Search button
+                const searchBtn = document.getElementById('search-btn');
+                if (searchBtn) {
+                    searchBtn.addEventListener('click', () => {
+                        const query = document.getElementById('search-input').value.trim();
+                        if (query) {
+                            this.searchCustomers(query);
+                        }
+                    });
+                }
+                
+                // Print button
+                const printBtn = document.getElementById('print-btn');
+                if (printBtn) {
+                    printBtn.addEventListener('click', () => {
+                        window.print();
+                    });
+                }
+                
+                // Share button
+                const shareBtn = document.getElementById('share-btn');
+                if (shareBtn) {
+                    shareBtn.addEventListener('click', () => {
+                        if (navigator.share) {
+                            navigator.share({
+                                title: `Receipt - ${this.customer?.name || 'Customer'}`,
+                                text: `Purchase history for ${this.customer?.name || 'customer'}`,
+                                url: window.location.href,
+                            });
+                        } else {
+                            // Fallback for browsers that don't support Web Share API
+                            navigator.clipboard.writeText(window.location.href).then(() => {
+                                const btn = document.getElementById('share-btn');
+                                const originalText = btn.innerHTML;
+                                btn.innerHTML = '<i class="fas fa-check me-2"></i> Copied!';
+                                setTimeout(() => {
+                                    btn.innerHTML = originalText;
+                                }, 2000);
+                            });
+                        }
+                    });
+                }
+                
+                // New Search button
+                const newSearchBtn = document.getElementById('new-search-btn');
+                if (newSearchBtn) {
+                    newSearchBtn.addEventListener('click', () => {
+                        localStorage.removeItem('customerId');
+                        this.customerId = null;
+                        this.showSearchInterface();
+                    });
+                }
+            }
+        }
+
+        // Initialize the receipt system when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.customerReceipt = new CustomerReceipt();
+        });
+    </script>
+</body>
+</html>
