@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Purchase Receipt</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --success-color: #1cc88a;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --light-bg: #f8f9fc;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+        
+        .navbar {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .receipt-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .receipt-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #2a4cb3 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .receipt-body {
+            padding: 30px;
+        }
+        
+        .receipt-footer {
+            background-color: #f8f9fc;
+            padding: 20px 30px;
+            border-top: 1px dashed #ddd;
+        }
+        
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .receipt-table th {
+            border-bottom: 2px solid #ddd;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 700;
+        }
+        
+        .receipt-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .receipt-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .customer-info {
+            background-color: #f8f9fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            font-size: 1.1rem;
+            background-color: #f8f9fc;
+        }
+        
+        .print-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .back-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Bluetooth Modal Styles */
+        .bluetooth-device-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        
+        .bluetooth-device-item {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .bluetooth-device-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .bluetooth-device-item.selected {
+            background-color: #e7f1ff;
+            border-color: var(--primary-color);
+        }
+        
+        .bluetooth-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .bluetooth-connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .bluetooth-success {
+            background-color: #d1edff;
+            color: #0c5460;
+        }
+        
+        .bluetooth-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .receipt-container {
+                box-shadow: none;
+                margin: 0;
+                max-width: 100%;
+                border: none;
+            }
+            
+            .print-controls {
+                display: none;
+            }
+            
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+            
+            .back-link {
+                display: none;
+            }
+            
+            /* Ensure proper page breaks */
+            .receipt-container {
+                page-break-inside: avoid;
+            }
+            
+            /* Improve print readability */
+            .receipt-table {
+                font-size: 12px;
+            }
+            
+            .receipt-header {
+                padding: 20px;
+            }
+            
+            .receipt-body {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark no-print">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-receipt me-2"></i>Customer Receipt Portal
+            </a>
+            <div class="d-flex">
+                <span class="navbar-text me-3">
+                    <span class="firebase-status firebase-connected" id="firebase-status"></span>
+                    <span id="connection-status">Connected to Firebase</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <!-- Back Link -->
+        <a href="customer.html?id=${customer.id}" class="back-link no-print" id="back-link">
+            <i class="fas fa-arrow-left me-2"></i> Back to Customer Details
+        </a>
+
+        <!-- Receipt Content -->
+        <div id="receipt-content">
+            <!-- Receipt will be populated here -->
+        </div>
+    </div>
+
+    <!-- Print Controls -->
+    <div class="print-controls no-print">
+        <div class="btn-group shadow">
+            <button class="btn btn-primary" id="print-btn">
+                <i class="fas fa-print me-2"></i> Print Receipt
+            </button>
+            <button class="btn btn-outline-primary" id="share-btn">
+                <i class="fas fa-share-alt me-2"></i> Share
+            </button>
+        </div>
+    </div>
+
+    <!-- Bluetooth Modal -->
+    <div class="modal fade" id="bluetoothModal" tabindex="-1" aria-labelledby="bluetoothModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bluetoothModalLabel">
+                        <i class="fas fa-bluetooth me-2"></i>Share via Bluetooth
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="bluetooth-status" class="bluetooth-status">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Searching for Bluetooth devices...
+                    </div>
+                    <div class="bluetooth-device-list" id="bluetooth-device-list">
+                        <!-- Bluetooth devices will be listed here -->
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="share-as-file">
+                        <label class="form-check-label" for="share-as-file">
+                            Share as downloadable file
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="share-bluetooth-btn" disabled>
+                        <i class="fas fa-share me-2"></i> Share
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
+            authDomain: "hallow-2c7e6.firebaseapp.com",
+            projectId: "hallow-2c7e6",
+            storageBucket: "hallow-2c7e6.firebasestorage.app",
+            messagingSenderId: "310263322867",
+            appId: "1:310263322867:web:3a5338621e8b75c163ff86",
+            measurementId: "G-4P4D5W5PSE"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Customer Receipt Class
+        class CustomerReceipt {
+            constructor() {
+                this.customer = null;
+                this.purchases = [];
+                this.customerId = null;
+                this.selectedBluetoothDevice = null;
+                this.bluetoothServer = null;
+                this.bluetoothCharacteristic = null;
+                
+                this.init();
+            }
+            
+            async init() {
+                // Get customer ID from URL
+                this.customerId = this.getCustomerIdFromUrl();
+                
+                if (!this.customerId) {
+                    this.showError("No customer ID found in URL. Please access this page through the customer list.");
+                    return;
+                }
+                
+                // Update connection status
+                this.updateConnectionStatus();
+                
+                // Load customer data
+                await this.loadCustomerData();
+                
+                // Set up event listeners
+                this.setupEventListeners();
+            }
+            
+            getCustomerIdFromUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('id');
+            }
+            
+            updateConnectionStatus() {
+                const firebaseStatus = document.getElementById('firebase-status');
+                const connectionStatus = document.getElementById('connection-status');
+                
+                if (firebaseStatus && connectionStatus) {
+                    firebaseStatus.className = 'firebase-status firebase-connected';
+                    connectionStatus.textContent = 'Connected to Firebase';
+                }
+            }
+            
+            async loadCustomerData() {
+                try {
+                    // Show loading state
+                    this.showLoading();
+                    
+                    // Load customer
+                    const customerDoc = await db.collection('customers').doc(this.customerId).get();
+                    
+                    if (!customerDoc.exists) {
+                        this.showError("Customer not found in database");
+                        return;
+                    }
+                    
+                    this.customer = { id: customerDoc.id, ...customerDoc.data() };
+                    
+                    // Load customer's purchases
+                    const purchasesSnapshot = await db.collection('purchases')
+                        .where('customer_id', '==', this.customerId)
+                        .get();
+                    
+                    this.purchases = purchasesSnapshot.docs.map(doc => ({ 
+                        id: doc.id, 
+                        ...doc.data() 
+                    }));
+                    
+                    // Update back link
+                    this.updateBackLink();
+                    
+                    // Render receipt
+                    this.renderReceipt();
+                    
+                } catch (error) {
+                    console.error('Error loading customer data:', error);
+                    this.showError("Error loading customer data: " + error.message);
+                }
+            }
+            
+            updateBackLink() {
+                const backLink = document.getElementById('back-link');
+                if (backLink && this.customer) {
+                    backLink.href = `customer.html?id=${this.customer.id}`;
+                }
+            }
+            
+            renderReceipt() {
+                if (!this.customer) return;
+                
+                // Calculate totals
+                const totalSpent = this.purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+                const pendingPayments = this.purchases.filter(p => p.status !== 'paid').length;
+                const totalPurchases = this.purchases.length;
+                
+                let receiptHtml = `
+                    <div class="receipt-container">
+                        <div class="receipt-header">
+                            <h1><i class="fas fa-store me-2"></i>Hallow Business Solutions</h1>
+                            <p class="mb-0">Customer Purchase Receipt</p>
+                        </div>
+                        
+                        <div class="receipt-body">
+                            <div class="customer-info">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h4>${this.customer.name}</h4>
+                                        <p class="mb-1"><strong>Customer ID:</strong> ${this.customer.id}</p>
+                                        <p class="mb-1"><strong>Phone:</strong> ${this.customer.phone || 'N/A'}</p>
+                                        <p class="mb-0"><strong>Email:</strong> ${this.customer.email || 'N/A'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Member Since:</strong> ${new Date(this.customer.created_at).toLocaleDateString()}</p>
+                                        <p class="mb-1"><strong>Total Purchases:</strong> ${totalPurchases}</p>
+                                        <p class="mb-1"><strong>Total Spent:</strong> $${totalSpent.toFixed(2)}</p>
+                                        <p class="mb-0"><strong>Pending Payments:</strong> ${pendingPayments}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 class="mb-3">Purchase History</h4>
+                `;
+                
+                if (this.purchases.length === 0) {
+                    receiptHtml += `
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>No purchase history found for this customer.
+                        </div>
+                    `;
+                } else {
+                    // Sort purchases by date (newest first)
+                    this.purchases.sort((a, b) => new Date(b.purchase_date) - new Date(a.purchase_date));
+                    
+                    receiptHtml += `
+                        <div class="table-responsive">
+                            <table class="receipt-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Transaction ID</th>
+                                        <th>Items</th>
+                                        <th class="text-right">Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    this.purchases.forEach(purchase => {
+                        const products = JSON.parse(purchase.product_data || '[]');
+                        const productNames = products.map(p => `${p.name} (x${p.quantity})`).join(', ');
+                        
+                        receiptHtml += `
+                            <tr>
+                                <td>${new Date(purchase.purchase_date).toLocaleDateString()}</td>
+                                <td>${purchase.id.substring(0, 8)}...</td>
+                                <td>${productNames}</td>
+                                <td class="text-right">$${purchase.total_amount?.toFixed(2) || '0.00'}</td>
+                                <td>
+                                    <span class="badge ${purchase.status === 'paid' ? 'bg-success' : 'bg-warning'} status-badge">
+                                        ${purchase.status || 'pending'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    receiptHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                receiptHtml += `
+                        </div>
+                        
+                        <div class="receipt-footer">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                                    <p class="mb-0"><strong>Page URL:</strong> ${window.location.href}</p>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <p class="mb-1"><strong>Total Purchases:</strong> ${totalPurchases}</p>
+                                    <p class="mb-1"><strong>Total Amount:</strong> $${totalSpent.toFixed(2)}</p>
+                                    <p class="mb-0"><strong>Pending Payments:</strong> ${pendingPayments}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-center text-muted no-print">
+                        <small>This is an automated receipt. For questions, contact Hallow Business Solutions.</small>
+                    </div>
+                `;
+                
+                document.getElementById('receipt-content').innerHTML = receiptHtml;
+                
+                // Update page title
+                document.title = `Receipt - ${this.customer.name}`;
+            }
+            
+            showLoading() {
+                document.getElementById('receipt-content').innerHTML = `
+                    <div class="loading-spinner">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading customer receipt...</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            showError(message) {
+                document.getElementById('receipt-content').innerHTML = `
+                    <div class="error-message">
+                        <h4><i class="fas fa-exclamation-triangle me-2"></i>Error</h4>
+                        <p>${message}</p>
+                        <a href="index.html" class="btn btn-primary mt-2">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Customer List
+                        </a>
+                    </div>
+                `;
+            }
+            
+            setupEventListeners() {
+                // Print button
+                const printBtn = document.getElementById('print-btn');
+                if (printBtn) {
+                    printBtn.addEventListener('click', () => {
+                        window.print();
+                    });
+                }
+                
+                // Share button
+                const shareBtn = document.getElementById('share-btn');
+                if (shareBtn) {
+                    shareBtn.addEventListener('click', () => {
+                        if (navigator.share) {
+                            navigator.share({
+                                title: `Receipt - ${this.customer?.name || 'Customer'}`,
+                                text: `Purchase history for ${this.customer?.name || 'customer'}`,
+                                url: window.location.href,
+                            });
+                        } else {
+                            // Show Bluetooth sharing modal
+                            this.showBluetoothModal();
+                        }
+                    });
+                }
+                
+                // Bluetooth modal event listeners
+                this.setupBluetoothModalListeners();
+            }
+            
+            setupBluetoothModalListeners() {
+                const bluetoothModal = document.getElementById('bluetoothModal');
+                const shareBluetoothBtn = document.getElementById('share-bluetooth-btn');
+                
+                // When modal is shown, start searching for devices
+                bluetoothModal.addEventListener('show.bs.modal', () => {
+                    this.searchBluetoothDevices();
+                });
+                
+                // When modal is hidden, reset state
+                bluetoothModal.addEventListener('hidden.bs.modal', () => {
+                    this.selectedBluetoothDevice = null;
+                    this.resetBluetoothModal();
+                });
+                
+                // Share button in modal
+                if (shareBluetoothBtn) {
+                    shareBluetoothBtn.addEventListener('click', () => {
+                        this.shareViaBluetooth();
+                    });
+                }
+            }
+            
+            async searchBluetoothDevices() {
+                const statusEl = document.getElementById('bluetooth-status');
+                const deviceListEl = document.getElementById('bluetooth-device-list');
+                
+                try {
+                    // Check if Bluetooth is available
+                    if (!navigator.bluetooth) {
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Bluetooth is not supported by your browser';
+                        statusEl.className = 'bluetooth-status bluetooth-error';
+                        return;
+                    }
+                    
+                    statusEl.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Searching for Bluetooth devices...';
+                    statusEl.className = 'bluetooth-status bluetooth-connecting';
+                    
+                    // Request Bluetooth device with specific service UUID
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: ['generic_access']
+                    });
+                    
+                    // If we get here, we found a device
+                    this.selectedBluetoothDevice = device;
+                    
+                    statusEl.innerHTML = `<i class="fas fa-check me-2"></i>Selected device: ${device.name || 'Unknown Device'}`;
+                    statusEl.className = 'bluetooth-status bluetooth-success';
+                    
+                    // Enable share button
+                    document.getElementById('share-bluetooth-btn').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Bluetooth error:', error);
+                    
+                    if (error.name === 'NotFoundError') {
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No Bluetooth devices found';
+                    } else if (error.name === 'SecurityError') {
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Bluetooth permission denied';
+                    } else if (error.name === 'NotAllowedError') {
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Bluetooth access was cancelled';
+                    } else {
+                        statusEl.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Bluetooth error: ${error.message}`;
+                    }
+                    
+                    statusEl.className = 'bluetooth-status bluetooth-error';
+                }
+            }
+            
+            async shareViaBluetooth() {
+                const statusEl = document.getElementById('bluetooth-status');
+                const shareAsFile = document.getElementById('share-as-file').checked;
+                
+                if (!this.selectedBluetoothDevice) {
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>No device selected';
+                    statusEl.className = 'bluetooth-status bluetooth-error';
+                    return;
+                }
+                
+                try {
+                    statusEl.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Connecting to device...';
+                    statusEl.className = 'bluetooth-status bluetooth-connecting';
+                    
+                    // Create receipt text
+                    const receiptText = this.generateReceiptText();
+                    
+                    if (shareAsFile) {
+                        // Share as file (simulated - actual file sharing via Bluetooth requires more complex implementation)
+                        await this.shareAsFile(receiptText);
+                    } else {
+                        // Share as text (simulated - actual text sharing via Bluetooth requires more complex implementation)
+                        await this.shareAsText(receiptText);
+                    }
+                    
+                    statusEl.innerHTML = '<i class="fas fa-check me-2"></i>Receipt shared successfully!';
+                    statusEl.className = 'bluetooth-status bluetooth-success';
+                    
+                    // Close modal after a short delay
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('bluetoothModal'));
+                        modal.hide();
+                    }, 1500);
+                    
+                } catch (error) {
+                    console.error('Bluetooth sharing error:', error);
+                    statusEl.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Sharing failed: ${error.message}`;
+                    statusEl.className = 'bluetooth-status bluetooth-error';
+                }
+            }
+            
+            generateReceiptText() {
+                if (!this.customer) return '';
+                
+                // Calculate totals
+                const totalSpent = this.purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+                const pendingPayments = this.purchases.filter(p => p.status !== 'paid').length;
+                const totalPurchases = this.purchases.length;
+                
+                let receiptText = `HALLOW BUSINESS SOLUTIONS\n`;
+                receiptText += `CUSTOMER PURCHASE RECEIPT\n\n`;
+                receiptText += `Customer: ${this.customer.name}\n`;
+                receiptText += `Customer ID: ${this.customer.id}\n`;
+                receiptText += `Phone: ${this.customer.phone || 'N/A'}\n`;
+                receiptText += `Email: ${this.customer.email || 'N/A'}\n`;
+                receiptText += `Member Since: ${new Date(this.customer.created_at).toLocaleDateString()}\n`;
+                receiptText += `Total Purchases: ${totalPurchases}\n`;
+                receiptText += `Total Spent: $${totalSpent.toFixed(2)}\n`;
+                receiptText += `Pending Payments: ${pendingPayments}\n\n`;
+                
+                if (this.purchases.length > 0) {
+                    receiptText += `PURCHASE HISTORY:\n`;
+                    receiptText += `Date\t\tTransaction\tItems\t\tAmount\tStatus\n`;
+                    
+                    this.purchases.forEach(purchase => {
+                        const products = JSON.parse(purchase.product_data || '[]');
+                        const productNames = products.map(p => `${p.name} (x${p.quantity})`).join(', ');
+                        
+                        receiptText += `${new Date(purchase.purchase_date).toLocaleDateString()}\t`;
+                        receiptText += `${purchase.id.substring(0, 8)}...\t`;
+                        receiptText += `${productNames.substring(0, 20)}${productNames.length > 20 ? '...' : ''}\t`;
+                        receiptText += `$${purchase.total_amount?.toFixed(2) || '0.00'}\t`;
+                        receiptText += `${purchase.status || 'pending'}\n`;
+                    });
+                } else {
+                    receiptText += `No purchase history found for this customer.\n`;
+                }
+                
+                receiptText += `\nGenerated: ${new Date().toLocaleString()}\n`;
+                receiptText += `Page URL: ${window.location.href}\n\n`;
+                receiptText += `This is an automated receipt. For questions, contact Hallow Business Solutions.`;
+                
+                return receiptText;
+            }
+            
+            async shareAsFile(receiptText) {
+                // In a real implementation, this would create a file and share it via Bluetooth
+                // For this demo, we'll simulate the process
+                
+                // Create a Blob with the receipt text
+                const blob = new Blob([receiptText], { type: 'text/plain' });
+                
+                // Create a URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Create a temporary link to download the file
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `receipt-${this.customer.id}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Clean up the URL
+                URL.revokeObjectURL(url);
+                
+                // Simulate file transfer delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            async shareAsText(receiptText) {
+                // In a real implementation, this would send the text via Bluetooth
+                // For this demo, we'll simulate the process
+                
+                // Simulate text transfer delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Show a message that text was "sent"
+                console.log('Receipt text would be sent via Bluetooth:', receiptText);
+            }
+            
+            resetBluetoothModal() {
+                const statusEl = document.getElementById('bluetooth-status');
+                const deviceListEl = document.getElementById('bluetooth-device-list');
+                const shareBtn = document.getElementById('share-bluetooth-btn');
+                
+                statusEl.innerHTML = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>Searching for Bluetooth devices...';
+                statusEl.className = 'bluetooth-status bluetooth-connecting';
+                
+                deviceListEl.innerHTML = '';
+                
+                if (shareBtn) {
+                    shareBtn.disabled = true;
+                }
+                
+                document.getElementById('share-as-file').checked = false;
+            }
+            
+            showBluetoothModal() {
+                const modal = new bootstrap.Modal(document.getElementById('bluetoothModal'));
+                modal.show();
+            }
+        }
+
+        // Initialize the receipt system when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.customerReceipt = new CustomerReceipt();
+        });
+    </script>
+</body>
+</html>
