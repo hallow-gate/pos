@@ -533,7 +533,7 @@
                                         <input type="text" class="form-control" id="product-name" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="product-price" class="form-label">Price ($)</label>
+                                        <label for="product-price" class="form-label">Price (₱)</label>
                                         <input type="number" step="0.01" class="form-control" id="product-price" required>
                                     </div>
                                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -637,7 +637,7 @@
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h6 class="m-0 font-weight-bold">Shopping Cart</h6>
                                 <div>
-                                    <span class="fw-bold fs-5" id="cart-total">Total: $0.00</span>
+                                    <span class="fw-bold fs-5" id="cart-total">Total: ₱0.00</span>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -942,7 +942,7 @@
                     row.innerHTML = `
                         <td class="product-code">${product.product_code || product.id}</td>
                         <td class="product-name">${product.name}</td>
-                        <td class="product-price">$${product.price?.toFixed(2) || '0.00'}</td>
+                    <td class="product-price">₱${product.price?.toFixed(2) || '0.00'}</td>
                         <td>
                             <div class="edit-actions">
                                 <button class="btn btn-sm btn-primary edit-product" data-id="${product.id}">
@@ -976,7 +976,7 @@
                     row.innerHTML = `
                         <td>${customer.name}</td>
                         <td>${customer.phone || 'N/A'}</td>
-                        <td>$${total.toFixed(2)}</td>
+                        <td>₱${total.toFixed(2)}</td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -999,7 +999,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${customer?.name || purchase.customer_name || 'Unknown Customer'}</td>
-                        <td>$${purchase.total_amount?.toFixed(2) || '0.00'}</td>
+                        <td>₱${purchase.total_amount?.toFixed(2) || '0.00'}</td>
                         <td>${new Date(purchase.purchase_date).toLocaleDateString()}</td>
                         <td>
                             <span class="badge ${purchase.status === 'paid' ? 'bg-success' : 'bg-warning'}">
@@ -1014,7 +1014,7 @@
                 const totalSales = this.purchases.reduce((sum, p) => sum + (p.total_amount || 0), 0);
                 const pendingPayments = this.purchases.filter(p => p.status !== 'paid').length;
                 
-                document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
+                document.getElementById('total-sales').textContent = `₱${totalSales.toFixed(2)}`;
                 document.getElementById('pending-payments').textContent = pendingPayments;
             }
             
@@ -1244,7 +1244,7 @@
                 
                 filtered.forEach(product => {
                     const div = document.createElement('div');
-                    div.textContent = `${product.product_code} - ${product.name} - $${product.price.toFixed(2)}`;
+                    div.textContent = `${product.product_code} - ${product.name} - ₱${product.price.toFixed(2)}`;
                     div.addEventListener('click', () => {
                         document.getElementById('product-search-purchase').value = product.name;
                         this.currentProduct = product;
@@ -1332,7 +1332,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${item.name}</td>
-                        <td>$${item.price.toFixed(2)}</td>
+                        <td>₱${item.price.toFixed(2)}</td>
                         <td>
                             <input type="number" class="form-control form-control-sm quantity-input" 
                                    value="${item.quantity}" min="1" data-index="${index}" style="width: 80px;">
@@ -1347,7 +1347,7 @@
                     tbody.appendChild(row);
                 });
                 
-                document.getElementById('cart-total').textContent = `Total: $${total.toFixed(2)}`;
+                document.getElementById('cart-total').textContent = `Total: ₱${total.toFixed(2)}`;
                 
                 // Add event listeners for quantity changes and remove buttons
                 document.querySelectorAll('.quantity-input').forEach(input => {
@@ -1478,8 +1478,8 @@
                     receiptHTML += `
                         <tr>
                             <td>${item.name}</td>
-                            <td align="right">${item.quantity} x $${item.price.toFixed(2)}</td>
-                            <td align="right">$${item.subtotal.toFixed(2)}</td>
+                            <td align="right">${item.quantity} x ₱${item.price.toFixed(2)}</td>
+                            <td align="right">₱${item.subtotal.toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -1491,7 +1491,7 @@
                         <tr>
                             <td><strong>Total:</strong></td>
                             <td></td>
-                            <td align="right"><strong>$${total.toFixed(2)}</strong></td>
+                            <td align="right"><strong>₱${total.toFixed(2)}</strong></td>
                         </tr>
                     </table>
                     <hr>
@@ -1601,7 +1601,7 @@
                     <h5>${customer.name}</h5>
                     <p><strong>Phone:</strong> ${customer.phone || 'N/A'}</p>
                     <p><strong>Email:</strong> ${customer.email || 'N/A'}</p>
-                    <p><strong>Total Purchases:</strong> $${totalPurchases.toFixed(2)}</p>
+                    <p><strong>Total Purchases:</strong> ₱${totalPurchases.toFixed(2)}</p>
                     <p><strong>Total Orders:</strong> ${customerPurchases.length}</p>
                 `;
                 
@@ -1624,7 +1624,7 @@
                     row.innerHTML = `
                         <td>${new Date(purchase.purchase_date).toLocaleDateString()}</td>
                         <td class="products-cell">${productList}</td>
-                        <td>$${purchase.total_amount?.toFixed(2) || '0.00'}</td>
+                        <td>₱${purchase.total_amount?.toFixed(2) || '0.00'}</td>
                         <td>
                             <span class="badge ${purchase.status === 'paid' ? 'bg-success' : 'bg-warning'}">
                                 ${purchase.status || 'pending'}
@@ -1687,7 +1687,7 @@
                         <tr>
                             <td>${item.name}</td>
                             <td align="right">${item.quantity} x $${item.price.toFixed(2)}</td>
-                            <td align="right">$${(item.price * item.quantity).toFixed(2)}</td>
+                            <td align="right">₱${(item.price * item.quantity).toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -1781,7 +1781,7 @@
                         <p><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
                         <p><strong>Report Time:</strong> ${new Date().toLocaleTimeString()}</p>
                         <hr>
-                        <p><strong>Total Purchases:</strong> $${totalPurchases.toFixed(2)}</p>
+                        <p><strong>Total Purchases:</strong> ₱${totalPurchases.toFixed(2)}</p>
                         <p><strong>Total Orders:</strong> ${customerPurchases.length}</p>
                         <hr>
                 `;
@@ -1796,14 +1796,14 @@
                                 <div class="purchase-header">
                                     <p><strong>Order #${index + 1}</strong></p>
                                     <p><strong>Date:</strong> ${purchaseDate.toLocaleDateString()} | <strong>Time:</strong> ${purchaseDate.toLocaleTimeString()}</p>
-                                    <p><strong>Amount:</strong> $${purchase.total_amount?.toFixed(2) || '0.00'} | <strong>Status:</strong> ${purchase.status || 'pending'}</p>
+                                    <p><strong>Amount:</strong> ₱${purchase.total_amount?.toFixed(2) || '0.00'} | <strong>Status:</strong> ${purchase.status || 'pending'}</p>
                                 </div>
                                 <p><strong>Items Purchased:</strong></p>
                                 <div class="item-list">
                         `;
                         
                         purchase.product_data.forEach(item => {
-                            reportHTML += `<p>• ${item.name} - ${item.quantity} x $${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}</p>`;
+                            reportHTML += `<p>• ${item.name} - ${item.quantity} x ₱${item.price.toFixed(2)} = ₱${(item.price * item.quantity).toFixed(2)}</p>`;
                         });
                         
                         reportHTML += `</div></div>`;
@@ -2023,7 +2023,7 @@
                 row.classList.remove('edit-mode');
                 codeCell.textContent = originalCode;
                 nameCell.textContent = originalName;
-                priceCell.textContent = `$${parseFloat(originalPrice).toFixed(2)}`;
+                priceCell.textContent = `₱${parseFloat(originalPrice).toFixed(2)}`;
                 
                 // Restore original actions
                 actionsCell.innerHTML = `
