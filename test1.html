@@ -1777,10 +1777,8 @@
                         <hr>
                         <p><strong>Customer:</strong> ${customer.name}</p>
                         <p><strong>Phone:</strong> ${customer.phone || 'N/A'}</p>
-                        <p><strong>Email:</strong> ${customer.email || 'N/A'}</p>
                         <p><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
-                        <p><strong>Report Time:</strong> ${new Date().toLocaleTimeString()}</p>
-                        <hr>
+                            <hr>
                         <p><strong>Total Purchases:</strong> ₱${totalPurchases.toFixed(2)}</p>
                         <p><strong>Total Orders:</strong> ${customerPurchases.length}</p>
                         <hr>
@@ -1795,7 +1793,7 @@
                             <div class="purchase-item">
                                 <div class="purchase-header">
                                     <p><strong>Order #${index + 1}</strong></p>
-                                    <p><strong>Date:</strong> ${purchaseDate.toLocaleDateString()} | <strong>Time:</strong> ${purchaseDate.toLocaleTimeString()}</p>
+                                    <p><strong>Date:</strong> ${purchaseDate.toLocaleDateString()} </p>
                                     <p><strong>Amount:</strong> ₱${purchase.total_amount?.toFixed(2) || '0.00'} | <strong>Status:</strong> ${purchase.status || 'pending'}</p>
                                 </div>
                                 <p><strong>Items Purchased:</strong></p>
