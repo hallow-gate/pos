@@ -378,10 +378,57 @@
                 border: none;
                 border-top: 1px dashed #000;
             }
+            /* Snowflakes container - will cover the entire screen */
+        #snowflakes-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        
+        .snowflake {
+            position: absolute;
+            top: -20px;
+            color: white;
+            font-size: 1em;
+            opacity: 0.8;
+            user-select: none;
+            pointer-events: none;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Snowflake animation */
+        @keyframes fall {
+            0% {
+                transform: translateY(-20px) translateX(0) rotate(0deg);
+                opacity: 0.8;
+            }
+            25% {
+                transform: translateY(25vh) translateX(var(--sway)) rotate(90deg);
+            }
+            50% {
+                transform: translateY(50vh) translateX(calc(var(--sway) * -0.5)) rotate(180deg);
+            }
+            75% {
+                transform: translateY(75vh) translateX(calc(var(--sway) * 0.3)) rotate(270deg);
+            }
+            100% {
+                transform: translateY(100vh) translateX(calc(var(--sway) * -0.2)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .snowflake {
+            animation: fall linear infinite;
+        }
         }
     </style>
 </head>
 <body>
+    <div id="snowflakes-container"></div>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
@@ -2070,6 +2117,71 @@
         document.addEventListener('DOMContentLoaded', () => {
             window.posSystem = new DebtPOSSystem();
         });
+        // Create snowflakes function
+    function createSnowflakes() {
+        const snowflakesContainer = document.getElementById('snowflakes-container');
+        const snowflakeCount = 80; // Adjust number of snowflakes
+        
+        // Snowflake characters
+        const snowflakeChars = ['❄', '❅', '❆', '＊', '✢', '✣', '✤', '✦'];
+        
+        // Clear any existing snowflakes
+        snowflakesContainer.innerHTML = '';
+        
+        for (let i = 0; i < snowflakeCount; i++) {
+            const snowflake = document.createElement('div');
+            snowflake.classList.add('snowflake');
+            
+            // Random snowflake character
+            const randomChar = snowflakeChars[Math.floor(Math.random() * snowflakeChars.length)];
+            snowflake.textContent = randomChar;
+            
+            // Random initial position
+            const startPositionX = Math.random() * 100;
+            snowflake.style.left = startPositionX + 'vw';
+            
+            // Random size
+            const size = Math.random() * 1.2 + 0.5;
+            snowflake.style.fontSize = size + 'em';
+            
+            // Random opacity
+            const opacity = Math.random() * 0.6 + 0.3;
+            snowflake.style.opacity = opacity;
+            
+            // Random animation duration
+            const duration = Math.random() * 12 + 8;
+            snowflake.style.animationDuration = duration + 's';
+            
+            // Random animation delay
+            const delay = Math.random() * 5;
+            snowflake.style.animationDelay = delay + 's';
+            
+            // Random sway animation
+            const sway = Math.random() * 60 - 30;
+            snowflake.style.setProperty('--sway', sway + 'px');
+            
+            // Random color variation (subtle blues/whites)
+            if (Math.random() > 0.7) {
+                snowflake.style.color = '#e3f2fd';
+            } else if (Math.random() > 0.5) {
+                snowflake.style.color = '#bbdefb';
+            }
+            
+            snowflakesContainer.appendChild(snowflake);
+        }
+    }
+    
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        createSnowflakes();
+        
+        // Recreate snowflakes if window is resized
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(createSnowflakes, 250);
+        });
+    });
     </script>
 </body>
 </html>
