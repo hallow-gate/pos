@@ -425,7 +425,7 @@
         .snowflake {
             animation: fall linear infinite;
         }
-        }
+        
            /* ===== EXTRA SMALL CONTAINER WITH SPARKLES ===== */
         #nyc-wrapper {
             position: fixed;
@@ -728,15 +728,7 @@
             </div>
         </div>
     </nav>
-     <div id="nyc-wrapper">
-        <div id="nyc-container">
-            <div id="nyc-glow"></div>
-            <div id="nyc-time"></div>
-            <div class="nyc-year-text" id="nyc-year-text"></div>
-            <div class="nyc-celebration-text" id="nyc-celebration-text">HNY!</div>
-        </div>
-     </div>
-
+     
     <!-- Main Content -->
     <div class="container-fluid mt-4">
         <div id="snowflakes-container"></div>
@@ -1165,7 +1157,15 @@
             </div>
         </div>
     </div>
-
+<div id="nyc-wrapper">
+        <div id="nyc-container">
+            <div id="nyc-glow"></div>
+            <div id="nyc-time"></div>
+            <div class="nyc-year-text" id="nyc-year-text"></div>
+            <div class="nyc-celebration-text" id="nyc-celebration-text">HNY!</div>
+        </div>
+</div>
+    
     <!-- Bootstrap & jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -2873,10 +2873,38 @@
                         nycCreateConfetti();
                     }
                     
-                    // Big clustered firework
+                     // Big clustered firework
                     if (Math.random() < 0.15) {
                         setTimeout(function() {
-                            const nycX = Math.random() * window.inner
+                            const nycX = Math.random() * window.innerWidth;
+                            const nycY = 150 + Math.random() * (window.innerHeight * 0.5);
+                            const nycHue = Math.random() * 360;
+                            
+                            const nycClusterCount = 2 + Math.floor(Math.random() * 2);
+                            for (let j = 0; j < nycClusterCount; j++) {
+                                setTimeout(function() {
+                                    nycCreateFullSiteFireworkBurst(
+                                        nycX + (Math.random() * 100 - 50), 
+                                        nycY + (Math.random() * 80 - 40), 
+                                        (nycHue + j * 60) % 360
+                                    );
+                                }, j * 250);
+                            }
+                        }, 800);
+                    }
+                }, 1800);
+                
+                // Keep fireworks going throughout January
+                if (nycCurrentMonth === 0) {
+                    const nycEndOfJanuary = new Date(nycCurrentYear, 1, 1);
+                    const nycTimeUntilEnd = nycEndOfJanuary - nycNow;
+                    
+                    if (nycTimeUntilEnd > 0) {
+                        setTimeout(function() { clearInterval(nycFireworkInterval); }, nycTimeUntilEnd);
+                    }
+                }
+            }
+        })();
     </script>
 </body>
 </html>
