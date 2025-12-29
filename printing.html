@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Printer Receipt</title>
+    <style>
+        /* Thermal printer specific styles */
+        @media print {
+            @page {
+                size: 80mm 297mm; /* Standard thermal receipt size */
+                margin: 0;
+                padding: 0;
+            }
+            
+            body {
+                width: 80mm; /* 80mm thermal paper width */
+                margin: 0;
+                padding: 5mm;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.2;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .no-print { display: none !important; }
+            
+            .receipt-container {
+                width: 100%;
+                max-width: 80mm;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+        }
+        
+        /* Screen styles */
+        @media screen {
+            body {
+                background: #f5f5f5;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }
+            
+            .receipt-container {
+                width: 80mm;
+                min-height: 297mm;
+                background: white;
+                margin: 0 auto;
+                padding: 10mm;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                font-family: 'Courier New', monospace;
+            }
+            
+            .controls {
+                text-align: center;
+                margin: 20px 0;
+                padding: 20px;
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            
+            .btn {
+                padding: 12px 24px;
+                margin: 5px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            
+            .btn-primary {
+                background: #007bff;
+                color: white;
+            }
+            
+            .btn-primary:hover {
+                background: #0056b3;
+            }
+            
+            .btn-success {
+                background: #28a745;
+                color: white;
+            }
+            
+            .btn-success:hover {
+                background: #1e7e34;
+            }
+            
+            .btn-warning {
+                background: #ffc107;
+                color: black;
+            }
+            
+            .btn-warning:hover {
+                background: #e0a800;
+            }
+            
+            .status {
+                margin: 10px 0;
+                padding: 10px;
+                border-radius: 5px;
+                display: none;
+            }
+            
+            .status-success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            
+            .status-error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            
+            .printer-info {
+                margin-top: 10px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+        }
+        
+        /* Common receipt styles */
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .left { text-align: left; }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .receipt-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+        
+        .dashed-line {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+        
+        .solid-line {
+            border-top: 1px solid #000;
+            margin: 10px 0;
+        }
+        
+        .total {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .barcode-area {
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px dashed #ccc;
+        }
+        
+        .footer {
+            font-size: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Controls Panel -->
+    <div class="controls no-print">
+        <h2>Thermal Printer Control Panel</h2>
+        
+        <div id="status" class="status"></div>
+        
+        <button class="btn btn-primary" onclick="connectBluetooth()">
+            🔗 Connect Bluetooth Printer
+        </button>
+        
+        <button class="btn btn-success" onclick="printViaBluetooth()" id="printBluetoothBtn" disabled>
+            🖨️ Print via Bluetooth
+        </button>
+        
+        <button class="btn btn-warning" onclick="printViaBrowser()">
+            🌐 Print via Browser
+        </button>
+        
+        <button class="btn btn-primary" onclick="testPrinter()" id="testBtn" disabled>
+            🧪 Test Printer
+        </button>
+        
+        <div id="printerInfo" class="printer-info" style="display: none;">
+            <strong>Connected Printer:</strong> 
+            <span id="printerName">Unknown</span><br>
+            <span id="printerStatus">Status: Disconnected</span>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button class="btn" onclick="loadSampleData()">
+                📋 Load Sample Data
+            </button>
+            <button class="btn" onclick="clearReceipt()">
+                🗑️ Clear Receipt
+            </button>
+        </div>
+    </div>
+
+    <!-- Receipt Template -->
+    <div class="receipt-container">
+        <div class="center company-name">SUPER STORE</div>
+        <div class="center">123 Business Avenue</div>
+        <div class="center">Cityville, ST 12345</div>
+        <div class="center">📞 (555) 123-4567</div>
+        <div class="dashed-line"></div>
+        
+        <div class="center receipt-title">SALES RECEIPT</div>
+        
+        <div class="item-row">
+            <span><strong>Receipt #:</strong></span>
+            <span id="receipt-number">00001</span>
+        </div>
+        <div class="item-row">
+            <span><strong>Date:</strong></span>
+            <span id="current-date">2024-01-15</span>
+        </div>
+        <div class="item-row">
+            <span><strong>Time:</strong></span>
+            <span id="current-time">14:30:00</span>
+        </div>
+        <div class="item-row">
+            <span><strong>Cashier:</strong></span>
+            <span id="cashier">USER01</span>
+        </div>
+        <div class="solid-line"></div>
+        
+        <div class="item-row">
+            <span><strong>Customer:</strong></span>
+            <span id="customer-name">WALK-IN CUSTOMER</span>
+        </div>
+        <div class="dashed-line"></div>
+        
+        <!-- Items Header -->
+        <div class="item-row" style="font-weight: bold;">
+            <div style="width: 40%;">ITEM</div>
+            <div style="width: 20%; text-align: center;">QTY</div>
+            <div style="width: 20%; text-align: right;">PRICE</div>
+            <div style="width: 20%; text-align: right;">TOTAL</div>
+        </div>
+        <div class="dashed-line"></div>
+        
+        <!-- Items List -->
+        <div id="items-list">
+            <!-- Items will be populated here -->
+        </div>
+        
+        <div class="solid-line"></div>
+        
+        <!-- Totals -->
+        <div id="totals-section">
+            <div class="item-row">
+                <span>Subtotal:</span>
+                <span id="subtotal">$0.00</span>
+            </div>
+            <div class="item-row">
+                <span>Tax (8%):</span>
+                <span id="tax">$0.00</span>
+            </div>
+            <div class="item-row" style="margin-top: 10px;">
+                <span>Discount:</span>
+                <span id="discount">$0.00</span>
+            </div>
+            <div class="item-row total">
+                <span>TOTAL AMOUNT:</span>
+                <span id="total">$0.00</span>
+            </div>
+        </div>
+        
+        <div class="solid-line"></div>
+        
+        <div class="item-row">
+            <span><strong>Payment:</strong></span>
+            <span id="payment-method">CASH</span>
+        </div>
+        <div class="item-row">
+            <span><strong>Amount Paid:</strong></span>
+            <span id="amount-paid">$0.00</span>
+        </div>
+        <div class="item-row">
+            <span><strong>Change:</strong></span>
+            <span id="change">$0.00</span>
+        </div>
+        
+        <div class="solid-line"></div>
+        
+        <div class="barcode-area">
+            <div style="font-family: 'Libre Barcode 128', cursive; font-size: 40px;">
+                000001234567890
+            </div>
+            <div style="font-size: 10px; margin-top: 5px;">
+                * * * * * * * * * *
+            </div>
+        </div>
+        
+        <div class="footer center">
+            <strong>THANK YOU FOR YOUR PURCHASE!</strong><br>
+            ----------------------------------------<br>
+            Items cannot be returned or exchanged<br>
+            without original receipt within 7 days<br>
+            <br>
+            www.superstore-example.com<br>
+            support@superstore.com
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let bluetoothDevice = null;
+        let bluetoothCharacteristic = null;
+        let isBluetoothConnected = false;
+        let receiptCounter = 1;
+
+        // ESC/POS Printer Commands
+        const PrinterCommands = {
+            INIT: '\x1B\x40', // Initialize printer
+            ALIGN_LEFT: '\x1B\x61\x00', // Left alignment
+            ALIGN_CENTER: '\x1B\x61\x01', // Center alignment
+            ALIGN_RIGHT: '\x1B\x61\x02', // Right alignment
+            BOLD_ON: '\x1B\x45\x01', // Bold on
+            BOLD_OFF: '\x1B\x45\x00', // Bold off
+            UNDERLINE_ON: '\x1B\x2D\x01', // Underline on
+            UNDERLINE_OFF: '\x1B\x2D\x00', // Underline off
+            DOUBLE_HEIGHT: '\x1D\x21\x01', // Double height text
+            NORMAL_TEXT: '\x1D\x21\x00', // Normal text
+            FEED_LINE: '\x0A', // Feed one line
+            FEED_LINES: (n) => `\x1B\x64${String.fromCharCode(n)}`, // Feed n lines
+            CUT_PAPER: '\x1D\x56\x41\x10', // Partial cut paper
+            FULL_CUT: '\x1D\x56\x00', // Full cut paper
+            OPEN_CASH_DRAWER: '\x1B\x70\x00\x19\xFA', // Open cash drawer
+            SET_LINE_SPACING: (n) => `\x1B\x33${String.fromCharCode(n)}`, // Set line spacing
+        };
+
+        // Update date and time
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('current-date').textContent = 
+                now.toLocaleDateString('en-CA');
+            document.getElementById('current-time').textContent = 
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        // Generate receipt number
+        function generateReceiptNumber() {
+            const num = receiptCounter.toString().padStart(5, '0');
+            document.getElementById('receipt-number').textContent = num;
+            return num;
+        }
+
+        // Connect to Bluetooth printer
+        async function connectBluetooth() {
+            try {
+                showStatus('🔍 Searching for Bluetooth printers...', 'info');
+                
+                // Request Bluetooth device
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: 'BT' }, // Common thermal printer prefixes
+                        { namePrefix: 'POS' },
+                        { namePrefix: 'Printer' },
+                        { namePrefix: 'MTP' },
+                        { services: ['00001101-0000-1000-8000-00805f9b34fb'] } // Serial Port Profile
+                    ],
+                    optionalServices: [
+                        '000018f0-0000-1000-8000-00805f9b34fb', // Custom printer service
+                        '0000ffe0-0000-1000-8000-00805f9b34fb', // Common BLE service
+                        '0000ff00-0000-1000-8000-00805f9b34fb'
+                    ]
+                });
+
+                showStatus(`📱 Connecting to ${bluetoothDevice.name}...`, 'info');
+
+                // Connect to GATT server
+                const server = await bluetoothDevice.gatt.connect();
+                
+                // Try to find the correct service and characteristic
+                const services = await server.getPrimaryServices();
+                let found = false;
+
+                for (const service of services) {
+                    try {
+                        const characteristics = await service.getCharacteristics();
+                        
+                        for (const characteristic of characteristics) {
+                            // Look for writeable characteristics
+                            if (characteristic.properties.write || 
+                                characteristic.properties.writeWithoutResponse) {
+                                bluetoothCharacteristic = characteristic;
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        if (found) break;
+                    } catch (e) {
+                        console.log(`Service ${service.uuid} not accessible`);
+                    }
+                }
+
+                if (!found) {
+                    // Fallback: Try common characteristics
+                    try {
+                        const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+                        bluetoothCharacteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+                    } catch (e) {
+                        throw new Error('Could not find printer characteristic');
+                    }
+                }
+
+                isBluetoothConnected = true;
+                
+                // Update UI
+                document.getElementById('printBluetoothBtn').disabled = false;
+                document.getElementById('testBtn').disabled = false;
+                document.getElementById('printerInfo').style.display = 'block';
+                document.getElementById('printerName').textContent = bluetoothDevice.name;
+                document.getElementById('printerStatus').textContent = 'Status: Connected ✅';
+                
+                showStatus(`✅ Connected to ${bluetoothDevice.name}`, 'success');
+                
+                // Listen for disconnection
+                bluetoothDevice.addEventListener('gattserverdisconnected', () => {
+                    isBluetoothConnected = false;
+                    showStatus('❌ Bluetooth printer disconnected', 'error');
+                    document.getElementById('printerStatus').textContent = 'Status: Disconnected ❌';
+                });
+
+            } catch (error) {
+                console.error('Bluetooth error:', error);
+                showStatus(`❌ Bluetooth error: ${error.message}`, 'error');
+                isBluetoothConnected = false;
+            }
+        }
+
+        // Send data to Bluetooth printer
+        async function sendToBluetooth(data) {
+            if (!isBluetoothConnected || !bluetoothCharacteristic) {
+                throw new Error('Bluetooth printer not connected');
+            }
+
+            try {
+                // Convert string to Uint8Array
+                const encoder = new TextEncoder();
+                const encodedData = encoder.encode(data);
+                
+                // Send data
+                if (bluetoothCharacteristic.properties.writeWithoutResponse) {
+                    await bluetoothCharacteristic.writeValueWithoutResponse(encodedData);
+                } else {
+                    await bluetoothCharacteristic.writeValue(encodedData);
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Send error:', error);
+                isBluetoothConnected = false;
+                throw error;
+            }
+        }
+
+        // Generate ESC/POS formatted receipt
+        function generateEscPosReceipt() {
+            const receipt = document.querySelector('.receipt-container');
+            const lines = [];
+            
+            // Initialize printer
+            lines.push(PrinterCommands.INIT);
+            lines.push(PrinterCommands.ALIGN_CENTER);
+            lines.push(PrinterCommands.BOLD_ON);
+            lines.push('SUPER STORE');
+            lines.push(PrinterCommands.BOLD_OFF);
+            lines.push('123 Business Avenue');
+            lines.push('Cityville, ST 12345');
+            lines.push('📞 (555) 123-4567');
+            lines.push('========================');
+            lines.push(PrinterCommands.ALIGN_CENTER);
+            lines.push(PrinterCommands.BOLD_ON);
+            lines.push('SALES RECEIPT');
+            lines.push(PrinterCommands.BOLD_OFF);
+            lines.push(PrinterCommands.ALIGN_LEFT);
+            lines.push('========================');
+            lines.push(`Receipt #: ${document.getElementById('receipt-number').textContent}`);
+            lines.push(`Date: ${document.getElementById('current-date').textContent}`);
+            lines.push(`Time: ${document.getElementById('current-time').textContent}`);
+            lines.push(`Cashier: ${document.getElementById('cashier').textContent}`);
+            lines.push('------------------------');
+            lines.push(`Customer: ${document.getElementById('customer-name').textContent}`);
+            lines.push('------------------------');
+            lines.push(PrinterCommands.BOLD_ON);
+            lines.push('ITEM                QTY  PRICE  TOTAL');
+            lines.push(PrinterCommands.BOLD_OFF);
+            lines.push('------------------------');
+            
+            // Add items
+            const items = document.querySelectorAll('#items-list .item-row');
+            items.forEach(item => {
+                const text = item.textContent.trim();
+                if (text) lines.push(text);
+            });
+            
+            lines.push('========================');
+            lines.push(`Subtotal: ${document.getElementById('subtotal').textContent}`);
+            lines.push(`Tax (8%): ${document.getElementById('tax').textContent}`);
+            lines.push(`Discount: ${document.getElementById('discount').textContent}`);
+            lines.push(PrinterCommands.BOLD_ON);
+            lines.push(`TOTAL: ${document.getElementById('total').textContent}`);
+            lines.push(PrinterCommands.BOLD_OFF);
+            lines.push('========================');
+            lines.push(`Payment: ${document.getElementById('payment-method').textContent}`);
+            lines.push(`Amount Paid: ${document.getElementById('amount-paid').textContent}`);
+            lines.push(`Change: ${document.getElementById('change').textContent}`);
+            lines.push('========================');
+            lines.push(PrinterCommands.ALIGN_CENTER);
+            lines.push('* * * * * * * * * *');
+            lines.push('000001234567890');
+            lines.push('* * * * * * * * * *');
+            lines.push(PrinterCommands.ALIGN_CENTER);
+            lines.push('THANK YOU FOR YOUR PURCHASE!');
+            lines.push('------------------------');
+            lines.push('Items cannot be returned');
+            lines.push('without original receipt');
+            lines.push('within 7 days');
+            lines.push('');
+            lines.push('www.superstore-example.com');
+            lines.push(PrinterCommands.FEED_LINES(3));
+            lines.push(PrinterCommands.CUT_PAPER);
+            
+            return lines.join('\n');
+        }
+
+        // Print via Bluetooth
+        async function printViaBluetooth() {
+            if (!isBluetoothConnected) {
+                showStatus('❌ Please connect to a Bluetooth printer first', 'error');
+                return;
+            }
+
+            try {
+                showStatus('🖨️ Printing via Bluetooth...', 'info');
+                
+                // Generate receipt number
+                generateReceiptNumber();
+                
+                // Generate ESC/POS data
+                const escPosData = generateEscPosReceipt();
+                
+                // Send to printer
+                await sendToBluetooth(escPosData);
+                
+                showStatus('✅ Receipt printed successfully via Bluetooth!', 'success');
+                
+                // Increment receipt counter
+                receiptCounter++;
+                
+            } catch (error) {
+                showStatus(`❌ Print failed: ${error.message}`, 'error');
+                console.error('Print error:', error);
+            }
+        }
+
+        // Print via Browser
+        function printViaBrowser() {
+            generateReceiptNumber();
+            updateDateTime();
+            
+            // Trigger browser print dialog
+            window.print();
+            
+            // Increment receipt counter
+            receiptCounter++;
+            
+            showStatus('🖨️ Opening print dialog...', 'info');
+        }
+
+        // Test printer connection
+        async function testPrinter() {
+            if (!isBluetoothConnected) {
+                showStatus('❌ Connect to printer first', 'error');
+                return;
+            }
+
+            try {
+                showStatus('🧪 Testing printer...', 'info');
+                
+                const testData = PrinterCommands.INIT + 
+                    PrinterCommands.ALIGN_CENTER +
+                    PrinterCommands.BOLD_ON +
+                    'PRINTER TEST\n' +
+                    PrinterCommands.BOLD_OFF +
+                    '================\n' +
+                    'This is a test print\n' +
+                    'Line 1: ✅\n' +
+                    'Line 2: ✅\n' +
+                    'Line 3: ✅\n' +
+                    '================\n' +
+                    PrinterCommands.FEED_LINES(3) +
+                    PrinterCommands.CUT_PAPER;
+                
+                await sendToBluetooth(testData);
+                showStatus('✅ Printer test successful!', 'success');
+                
+            } catch (error) {
+                showStatus(`❌ Printer test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Load sample data
+        function loadSampleData() {
+            const sampleItems = [
+                { name: "Coffee Premium 500g", qty: 2, price: 12.99 },
+                { name: "Sugar 1kg", qty: 1, price: 4.50 },
+                { name: "Milk 1L", qty: 3, price: 2.75 },
+                { name: "Bread White", qty: 1, price: 3.25 },
+                { name: "Butter 250g", qty: 2, price: 5.99 }
+            ];
+
+            const itemsList = document.getElementById('items-list');
+            itemsList.innerHTML = '';
+            
+            let subtotal = 0;
+            
+            sampleItems.forEach((item, index) => {
+                const itemTotal = item.qty * item.price;
+                subtotal += itemTotal;
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'item-row';
+                itemDiv.innerHTML = `
+                    <div style="width: 40%;">${item.name}</div>
+                    <div style="width: 20%; text-align: center;">${item.qty}</div>
+                    <div style="width: 20%; text-align: right;">$${item.price.toFixed(2)}</div>
+                    <div style="width: 20%; text-align: right;">$${itemTotal.toFixed(2)}</div>
+                `;
+                itemsList.appendChild(itemDiv);
+            });
+
+            const tax = subtotal * 0.08;
+            const discount = subtotal * 0.05; // 5% discount
+            const total = subtotal + tax - discount;
+            const amountPaid = Math.ceil(total / 10) * 10; // Round up to nearest 10
+            const change = amountPaid - total;
+
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+            document.getElementById('discount').textContent = `-$${discount.toFixed(2)}`;
+            document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+            document.getElementById('amount-paid').textContent = `$${amountPaid.toFixed(2)}`;
+            document.getElementById('change').textContent = `$${change.toFixed(2)}`;
+            document.getElementById('customer-name').textContent = 'REGULAR CUSTOMER';
+            document.getElementById('payment-method').textContent = 'CASH';
+            
+            showStatus('📋 Sample data loaded', 'success');
+        }
+
+        // Clear receipt
+        function clearReceipt() {
+            document.getElementById('items-list').innerHTML = '';
+            document.getElementById('subtotal').textContent = '$0.00';
+            document.getElementById('tax').textContent = '$0.00';
+            document.getElementById('discount').textContent = '$0.00';
+            document.getElementById('total').textContent = '$0.00';
+            document.getElementById('amount-paid').textContent = '$0.00';
+            document.getElementById('change').textContent = '$0.00';
+            document.getElementById('customer-name').textContent = 'WALK-IN CUSTOMER';
+            
+            showStatus('🗑️ Receipt cleared', 'info');
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status status-${type}`;
+            statusDiv.style.display = 'block';
+            
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateTime();
+            generateReceiptNumber();
+            loadSampleData();
+            
+            // Update time every minute
+            setInterval(updateDateTime, 60000);
+            
+            // Check if Web Bluetooth is supported
+            if (!navigator.bluetooth) {
+                showStatus('❌ Web Bluetooth is not supported in this browser', 'error');
+                document.querySelector('.btn-primary').disabled = true;
+                document.querySelector('.btn-primary').innerHTML = '❌ Bluetooth Not Supported';
+            }
+        });
+
+        // Auto-print feature (optional)
+        function autoPrintOnLoad() {
+            // Uncomment to auto-print when page loads
+            // setTimeout(() => {
+            //     if (isBluetoothConnected) {
+            //         printViaBluetooth();
+            //     } else {
+            //         printViaBrowser();
+            //     }
+            // }, 2000);
+        }
+    </script>
+</body>
+</html>
