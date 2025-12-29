@@ -1758,16 +1758,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-      // Firebase configuration
-    const firebaseConfig = {
-    apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
-    authDomain: "hallow-2c7e6.firebaseapp.com",
-    projectId: "hallow-2c7e6",
-    storageBucket: "hallow-2c7e6.firebasestorage.app",
-    messagingSenderId: "310263322867",
-    appId: "1:310263322867:web:3a5338621e8b75c163ff86",
-    measurementId: "G-4P4D5W5PSE"
-        };
+      
    // Firebase configuration
 const firebaseConfig = {
 apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
@@ -2205,19 +2196,7 @@ measurementId: "G-4P4D5W5PSE"
     }
          
             
-            handleLogout() {
-                this.isAuthenticated = false;
-                
-                // Clear localStorage
-                localStorage.removeItem('pos_uid');
-                localStorage.removeItem('pos_email');
-                
-                // Hide logout button
-                document.getElementById('logout-btn').style.display = 'none';
-                document.getElementById('logged-in-user').textContent = '';
-                
-                // Show login form
-                this.showLogin();
+       
                 
                 // Reset form
                 document.getElementById('login-email').value = '';
