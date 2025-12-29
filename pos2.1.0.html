@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Debt POS System</title>
     <!-- Firebase SDK -->
+      <script src="https://www.google.com/recaptcha/enterprise.js?render=6Ld9KDosAAAAAH539gD82By0fkceEpFELZQqWXfF"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -1233,35 +1234,42 @@
                     <p class="login-subtitle">Welcome Back</p>
                 </div>
                 
-                <!-- Login Form -->
-                <div class="login-form">
-                    <div class="form-group">
-                        <div class="input-container">
-                            <i class="fas fa-envelope input-icon"></i>
-                            <input type="email" id="login-email" placeholder="Email Address" class="form-input" autocomplete="email" required>
-                            <div class="input-underline"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="input-container">
-                            <i class="fas fa-lock input-icon"></i>
-                            <input type="password" id="login-password" placeholder="Password" class="form-input" autocomplete="current-password" required>
-                            <div class="input-underline"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <button id="login-btn" class="login-button" type="button">
-                            <span class="button-text">Sign In</span>
-                            <div class="button-loader">
-                                <div class="loader-dot"></div>
-                                <div class="loader-dot"></div>
-                                <div class="loader-dot"></div>
-                            </div>
-                            <div class="button-glow"></div>
-                        </button>
-                    </div>
+            <!-- Login Form -->
+<div class="login-form">
+    <div class="form-group">
+        <div class="input-container">
+            <i class="fas fa-envelope input-icon"></i>
+            <input type="email" id="login-email" placeholder="Email Address" class="form-input" autocomplete="email" required>
+            <div class="input-underline"></div>
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <div class="input-container">
+            <i class="fas fa-lock input-icon"></i>
+            <input type="password" id="login-password" placeholder="Password" class="form-input" autocomplete="current-password" required>
+            <div class="input-underline"></div>
+        </div>
+    </div>
+    
+    <!-- Hidden reCAPTCHA token field -->
+    <input type="hidden" id="recaptcha-token" name="recaptcha_token">
+    
+    <div class="form-group">
+        <button id="login-btn" class="login-button" type="button">
+            <span class="button-text">Sign In</span>
+            <div class="button-loader">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+            </div>
+            <div class="button-glow"></div>
+        </button>
+    </div>
+    
+    <!-- Error message container -->
+    <div id="error-message" class="error-message" style="display: none;"></div>
+</div>
                     
                     <div class="form-footer">
                         <div class="status-message" id="login-status"></div>
@@ -1750,213 +1758,269 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Firebase configuration
-    const firebaseConfig = {
-    apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
-    authDomain: "hallow-2c7e6.firebaseapp.com",
-    projectId: "hallow-2c7e6",
-    storageBucket: "hallow-2c7e6.firebasestorage.app",
-    messagingSenderId: "310263322867",
-    appId: "1:310263322867:web:3a5338621e8b75c163ff86",
-    measurementId: "G-4P4D5W5PSE"
-        };
+   // Firebase configuration
+const firebaseConfig = {
+apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
+authDomain: "hallow-2c7e6.firebaseapp.com",
+projectId: "hallow-2c7e6",
+storageBucket: "hallow-2c7e6.firebasestorage.app",
+messagingSenderId: "310263322867",
+appId: "1:310263322867:web:3a5338621e8b75c163ff86",
+measurementId: "G-4P4D5W5PSE"
+    };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
 
-        // Login System Class
-        class LoginSystem {
-            constructor() {
-                this.uid = localStorage.getItem('pos_uid');
-                this.email = localStorage.getItem('pos_email');
-                this.user = null;
-                this.isAuthenticated = false;
-                
-                this.init();
-            }
+    // Login System Class
+    class LoginSystem {
+        constructor() {
+            this.uid = localStorage.getItem('pos_uid');
+            this.email = localStorage.getItem('pos_email');
+            this.user = null;
+            this.isAuthenticated = false;
             
-            init() {
-                // Set up auth state listener
-                auth.onAuthStateChanged((user) => {
-                    this.user = user;
-                    if (user) {
-                        this.handleLoginSuccess(user);
-                    } else {
-                        this.handleLogout();
-                    }
-                });
-                
-                // Check initial auth state
-                this.checkAuthState();
-                
-                // Set up login form event listeners
-                this.setupLoginForm();
-                
-                // Set up logout button
-                document.getElementById('logout-btn').addEventListener('click', () => this.logout());
-            }
-            
-            async checkAuthState() {
-                const user = auth.currentUser;
+            this.init();
+        }
+        
+        init() {
+            // Set up auth state listener
+            auth.onAuthStateChanged((user) => {
+                this.user = user;
                 if (user) {
-                    // User is already signed in
                     this.handleLoginSuccess(user);
-                } else if (this.uid && this.email) {
-                    // Try to sign in with stored credentials
-                    await this.autoLogin();
                 } else {
-                    // No stored credentials, show login
-                    this.showLogin();
+                    this.handleLogout();
                 }
-            }
+            });
             
-            async autoLogin() {
-                try {
-                    // For auto-login, we need the user to enter password
-                    // Since we can't store passwords securely in localStorage
-                    // We'll just show the login form with email pre-filled
-                    const emailInput = document.getElementById('login-email');
-                    if (emailInput) {
-                        emailInput.value = this.email;
-                        emailInput.focus();
-                    }
-                    this.showLogin();
-                } catch (error) {
-                    console.error('Auto-login error:', error);
-                    this.showLogin();
-                }
-            }
+            // Check initial auth state
+            this.checkAuthState();
             
-            showLogin() {
-                const loginOverlay = document.getElementById('login-overlay');
-                loginOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-                
-                // Hide main content
-                document.querySelector('nav').style.display = 'none';
-                document.querySelector('.container-fluid').style.display = 'none';
-                document.getElementById('nyc-wrapper').style.display = 'none';
-            }
+            // Set up login form event listeners
+            this.setupLoginForm();
             
-            hideLogin() {
-                const loginOverlay = document.getElementById('login-overlay');
-                loginOverlay.classList.remove('active');
-                document.body.style.overflow = 'auto';
-                
-                // Show main content
-                document.querySelector('nav').style.display = 'flex';
-                document.querySelector('.container-fluid').style.display = 'block';
-                document.getElementById('nyc-wrapper').style.display = 'block';
-                
-                // Initialize POS system only after successful login
-                if (!window.posSystem) {
-                    window.posSystem = new DebtPOSSystem();
-                }
+            // Set up logout button
+            document.getElementById('logout-btn').addEventListener('click', () => this.logout());
+        }
+        
+        async checkAuthState() {
+            const user = auth.currentUser;
+            if (user) {
+                // User is already signed in
+                this.handleLoginSuccess(user);
+            } else if (this.uid && this.email) {
+                // Try to sign in with stored credentials
+                await this.autoLogin();
+            } else {
+                // No stored credentials, show login
+                this.showLogin();
             }
-            
-            setupLoginForm() {
-                const loginBtn = document.getElementById('login-btn');
+        }
+        
+        async autoLogin() {
+            try {
+                // For auto-login, we need the user to enter password
+                // Since we can't store passwords securely in localStorage
+                // We'll just show the login form with email pre-filled
                 const emailInput = document.getElementById('login-email');
-                const passwordInput = document.getElementById('login-password');
-                
-                // Enter key to submit
-                emailInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') this.login();
-                });
-                
-                passwordInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') this.login();
-                });
-                
-                loginBtn.addEventListener('click', () => this.login());
+                if (emailInput) {
+                    emailInput.value = this.email;
+                    emailInput.focus();
+                }
+                this.showLogin();
+            } catch (error) {
+                console.error('Auto-login error:', error);
+                this.showLogin();
+            }
+        }
+        
+        showLogin() {
+            const loginOverlay = document.getElementById('login-overlay');
+            loginOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Hide main content
+            document.querySelector('nav').style.display = 'none';
+            document.querySelector('.container-fluid').style.display = 'none';
+            document.getElementById('nyc-wrapper').style.display = 'none';
+        }
+        
+        hideLogin() {
+            const loginOverlay = document.getElementById('login-overlay');
+            loginOverlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Show main content
+            document.querySelector('nav').style.display = 'flex';
+            document.querySelector('.container-fluid').style.display = 'block';
+            document.getElementById('nyc-wrapper').style.display = 'block';
+            
+            // Initialize POS system only after successful login
+            if (!window.posSystem) {
+                window.posSystem = new DebtPOSSystem();
+            }
+        }
+        
+        setupLoginForm() {
+            const loginBtn = document.getElementById('login-btn');
+            const emailInput = document.getElementById('login-email');
+            const passwordInput = document.getElementById('login-password');
+            
+            // Enter key to submit
+            emailInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.login();
+            });
+            
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.login();
+            });
+            
+            loginBtn.addEventListener('click', () => this.login());
+        }
+        
+        async login() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const loginBtn = document.getElementById('login-btn');
+            const statusEl = document.getElementById('login-status');
+            
+            // Validation
+            if (!email || !password) {
+                this.showStatus('Please enter both email and password', 'error');
+                return;
             }
             
-            async login() {
-                const email = document.getElementById('login-email').value.trim();
-                const password = document.getElementById('login-password').value;
-                const loginBtn = document.getElementById('login-btn');
-                const statusEl = document.getElementById('login-status');
-                
-                // Validation
-                if (!email || !password) {
-                    this.showStatus('Please enter both email and password', 'error');
-                    return;
-                }
-                
-                if (!this.isValidEmail(email)) {
-                    this.showStatus('Please enter a valid email address', 'error');
-                    return;
-                }
-                
-                // Show loading state
-                loginBtn.querySelector('.button-text').style.display = 'none';
-                loginBtn.querySelector('.button-loader').style.display = 'flex';
-                loginBtn.disabled = true;
-                
-                try {
-                    // Sign in with Firebase Auth
-                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
-                    const user = userCredential.user;
-                    
-                    // Store credentials in localStorage
-                    localStorage.setItem('pos_uid', user.uid);
-                    localStorage.setItem('pos_email', user.email);
-                    
-                    this.showStatus('Login successful! Loading system...', 'success');
-                    
-                    // Wait a bit for user to see success message
-                    setTimeout(() => {
-                        this.hideLogin();
-                    }, 1500);
-                    
-                } catch (error) {
-                    console.error('Login error:', error);
-                    
-                    // Handle specific Firebase Auth errors
-                    let errorMessage = 'Login failed. Please try again.';
-                    switch (error.code) {
-                        case 'auth/user-not-found':
-                            errorMessage = 'No account found with this email.';
-                            break;
-                        case 'auth/wrong-password':
-                            errorMessage = 'Incorrect password. Please try again.';
-                            break;
-                        case 'auth/invalid-email':
-                            errorMessage = 'Invalid email address.';
-                            break;
-                        case 'auth/user-disabled':
-                            errorMessage = 'This account has been disabled.';
-                            break;
-                        case 'auth/too-many-requests':
-                            errorMessage = 'Too many failed attempts. Please try again later.';
-                            break;
-                    }
-                    
-                    this.showStatus(errorMessage, 'error');
-                    
-                    // Reset button
-                    loginBtn.querySelector('.button-text').style.display = 'block';
-                    loginBtn.querySelector('.button-loader').style.display = 'none';
-                    loginBtn.disabled = false;
-                }
+            if (!this.isValidEmail(email)) {
+                this.showStatus('Please enter a valid email address', 'error');
+                return;
             }
             
-            handleLoginSuccess(user) {
-                this.isAuthenticated = true;
+            // Show loading state
+            loginBtn.querySelector('.button-text').style.display = 'none';
+            loginBtn.querySelector('.button-loader').style.display = 'flex';
+            loginBtn.disabled = true;
+            
+            try {
+                // ADDED: Get reCAPTCHA token
+                const recaptchaToken = await this.getRecaptchaToken();
+                if (!recaptchaToken) {
+                    throw new Error('reCAPTCHA verification failed');
+                }
                 
-                // Update stored credentials
+                // Sign in with Firebase Auth
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                
+                // Store credentials in localStorage
                 localStorage.setItem('pos_uid', user.uid);
                 localStorage.setItem('pos_email', user.email);
                 
-                // Update UI with user info
-                document.getElementById('logged-in-user').textContent = user.email;
-                document.getElementById('logout-btn').style.display = 'block';
+                this.showStatus('Login successful! Loading system...', 'success');
                 
-                // Hide login overlay if it's visible
-                this.hideLogin();
+                // Wait a bit for user to see success message
+                setTimeout(() => {
+                    this.hideLogin();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                
+                // Handle specific Firebase Auth errors
+                let errorMessage = 'Login failed. Please try again.';
+                
+                // ADDED: Handle reCAPTCHA error
+                if (error.message === 'reCAPTCHA verification failed') {
+                    errorMessage = 'Security verification failed. Please refresh and try again.';
+                } else switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Incorrect password. Please try again.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Invalid email address.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'This account has been disabled.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many failed attempts. Please try again later.';
+                        break;
+                }
+                
+                this.showStatus(errorMessage, 'error');
+                
+                // Reset button
+                loginBtn.querySelector('.button-text').style.display = 'block';
+                loginBtn.querySelector('.button-loader').style.display = 'none';
+                loginBtn.disabled = false;
             }
+        }
+        
+        // ADDED: reCAPTCHA token method
+        async getRecaptchaToken() {
+            try {
+                const token = await grecaptcha.enterprise.execute(
+                    '6Ld9KDosAAAAAH539gD82By0fkceEpFELZQqWXfF', 
+                    {action: 'LOGIN'}
+                );
+                return token;
+            } catch (error) {
+                console.error('reCAPTCHA error:', error);
+                return null;
+            }
+        }
+        
+        handleLoginSuccess(user) {
+            this.isAuthenticated = true;
+            
+            // Update stored credentials
+            localStorage.setItem('pos_uid', user.uid);
+            localStorage.setItem('pos_email', user.email);
+            
+            // Update UI with user info
+            document.getElementById('logged-in-user').textContent = user.email;
+            document.getElementById('logout-btn').style.display = 'block';
+            
+            // Hide login overlay if it's visible
+            this.hideLogin();
+        }
+        
+        // ADDED: Make sure this method exists (you already have it, but adding for completeness)
+        isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+        
+        // ADDED: Make sure this method exists (you already have it, but adding for completeness)
+        showStatus(message, type) {
+            const statusEl = document.getElementById('login-status');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+        
+        // ADDED: Make sure this method exists (you already have it, but adding for completeness)
+        handleLogout() {
+            this.isAuthenticated = false;
+            localStorage.removeItem('pos_uid');
+            localStorage.removeItem('pos_email');
+            document.getElementById('logged-in-user').textContent = '';
+            document.getElementById('logout-btn').style.display = 'none';
+        }
+        
+        // ADDED: Make sure this method exists (you already have it, but adding for completeness)
+        logout() {
+            auth.signOut().then(() => {
+                this.handleLogout();
+                this.showLogin();
+            });
+        }
+    }
             
             handleLogout() {
                 this.isAuthenticated = false;
