@@ -3346,30 +3346,54 @@ function getPHTime() {
     return phTime;
 }
 
-// Check if it's January (New Year period) in Philippine time
+// Helper to check if it's New Year period in PH time
+function isPHNewYear() {
+    const phNow = getPHTime();
+    const phMonth = phNow.getMonth();
+    const phDate = phNow.getDate();
+    
+    // Only New Year if it's January 1st OR we're in test mode
+    return (phMonth === 0 && phDate === 1) || TEST_FIREWORKS;
+}
+
+function isPHNewYearsEve() {
+    const phNow = getPHTime();
+    const phMonth = phNow.getMonth();
+    const phDate = phNow.getDate();
+    const phHours = phNow.getHours();
+    const phMinutes = phNow.getMinutes();
+    
+    // December 31st, 11:59 PM onwards in PH time
+    if (phMonth === 11 && phDate === 31 && phHours >= 23 && phMinutes >= 59) {
+        return true;
+    }
+    return false;
+}
+
+// Check Philippine time
 const phNow = getPHTime();
 const phCurrentMonth = phNow.getMonth();
 const phCurrentYear = phNow.getFullYear();
 const phNextYear = phCurrentYear + 1;
 
-// Start welding sparkles immediately
+// Start welding sparkles immediately (these are small, always ok)
 nycStartWeldingSparkles();
 
-// If it's January 1st in Philippine time, show celebration
-if (phCurrentMonth === 0 && phNow.getDate() === 1) {
+// Check if it's New Year or New Year's Eve in Philippine time
+if (isPHNewYear()) {
     // January 1st - show celebration
     nycTimeEl.style.display = 'none';
     nycYearText.textContent = `${phCurrentYear}`;
     nycCelebrationText.style.display = 'block';
     nycCelebrationText.textContent = "HAPPY NEW YEAR!";
     
-    // Start continuous fireworks for January 1st only
+    // Start full fireworks only on January 1st
     nycStartFullSiteFireworks();
     
     // Show countdown for next year in small text
     nycShowNextYearCountdown();
 } else {
-    // Not January 1st - show normal countdown to Philippine New Year
+    // Not New Year - show normal countdown to Philippine New Year
     nycYearText.textContent = `${phCurrentYear} → ${phNextYear}`;
     nycCelebrationText.style.display = 'none';
     nycStartCountdown();
@@ -3528,13 +3552,14 @@ function nycCreateWeldingSpark() {
 function nycStartCountdown() {
     // Target is January 1st, 00:00:00 Philippine Time (UTC+8)
     const phTarget = new Date(Date.UTC(phNextYear, 0, 1, -8, 0, 0, 0));
+    let fullFireworksStarted = false;
     
     function nycUpdateCountdown() {
         const phNow = getPHTime();
         const nycDiff = phTarget - phNow;
         
         // If countdown is complete (Philippine New Year)
-        if (nycDiff <= 0 || TEST_FIREWORKS) {
+        if (nycDiff <= 0 || (TEST_FIREWORKS && !fullFireworksStarted)) {
             nycTimeEl.style.display = 'none';
             nycYearText.textContent = `${phNextYear}`;
             nycCelebrationText.style.display = 'block';
@@ -3546,8 +3571,11 @@ function nycStartCountdown() {
                 nycCreateWeldingSpark();
             }, 100);
             
-            // Start full-site fireworks at Philippine midnight
-            nycStartFullSiteFireworks();
+            // Start full-site fireworks ONLY when New Year arrives
+            if (!fullFireworksStarted) {
+                nycStartFullSiteFireworks();
+                fullFireworksStarted = true;
+            }
             return;
         }
         
@@ -3576,15 +3604,85 @@ function nycStartCountdown() {
             nycCreateWeldingSpark();
         }
         
-        // More frequent fireworks as countdown approaches zero
-        if (nycProgress < 0.01 && Math.random() < 0.05) {
-            nycCreateFullSiteFirework();
+        // Create occasional small "teaser" fireworks ONLY in the last few minutes
+        // But NOT the big full-screen fireworks until midnight
+        if (nycProgress < 0.001 && Math.random() < 0.02 && isPHNewYearsEve()) {
+            // Only create SMALL teaser fireworks on New Year's Eve
+            nycCreateTeaserFirework();
         }
         
         requestAnimationFrame(nycUpdateCountdown);
     }
     
     nycUpdateCountdown();
+}
+
+// Small teaser fireworks for New Year's Eve only
+function nycCreateTeaserFirework() {
+    const nycX = Math.random() * window.innerWidth;
+    const nycY = window.innerHeight;
+    const nycHue = Math.random() * 360;
+    
+    // Smaller, less intense version
+    const nycTail = document.createElement("div");
+    nycTail.className = "nyc-firework-tail";
+    nycTail.style.left = `${nycX}px`;
+    nycTail.style.top = `${nycY}px`;
+    nycTail.style.background = `linear-gradient(to top, hsl(${nycHue}, 100%, 50%), transparent)`;
+    nycTail.style.width = "1px";
+    nycTail.style.height = "100px";
+    document.body.appendChild(nycTail);
+    
+    setTimeout(function() { nycTail.remove(); }, 1000);
+    
+    // Smaller burst
+    setTimeout(function() {
+        const nycBurstY = 200 + Math.random() * (window.innerHeight * 0.5);
+        const nycBurst = document.createElement("div");
+        nycBurst.className = "nyc-firework-burst";
+        nycBurst.style.left = `${nycX}px`;
+        nycBurst.style.top = `${nycBurstY}px`;
+        
+        // Smaller central flash
+        const nycCore = document.createElement("div");
+        nycCore.className = "nyc-firework";
+        nycCore.style.left = `0px`;
+        nycCore.style.top = `0px`;
+        nycCore.style.width = "20px";
+        nycCore.style.height = "20px";
+        nycCore.style.background = `radial-gradient(circle, hsl(${nycHue}, 100%, 70%) 0%, hsl(${nycHue}, 100%, 50%) 50%, transparent 80%)`;
+        nycCore.style.boxShadow = `0 0 10px 5px hsl(${nycHue}, 100%, 50%)`;
+        
+        nycBurst.appendChild(nycCore);
+        document.body.appendChild(nycBurst);
+        
+        // Fewer particles
+        const nycParticleCount = 30 + Math.random() * 30;
+        for (let i = 0; i < nycParticleCount; i++) {
+            const nycParticle = document.createElement("div");
+            nycParticle.className = "nyc-firework-particle";
+            
+            const nycAngle = Math.random() * Math.PI * 2;
+            const nycDistance = 30 + Math.random() * 100;
+            const nycTx = Math.cos(nycAngle) * nycDistance;
+            const nycTy = Math.sin(nycAngle) * nycDistance;
+            
+            nycParticle.style.setProperty('--tx', `${nycTx}px`);
+            nycParticle.style.setProperty('--ty', `${nycTy}px`);
+            
+            const nycParticleHue = (nycHue + Math.random() * 40 - 20) % 360;
+            nycParticle.style.background = `hsl(${nycParticleHue}, 80%, 50%)`;
+            nycParticle.style.boxShadow = `0 0 3px 1px hsl(${nycParticleHue}, 100%, 50%)`;
+            
+            const nycSize = 2 + Math.random() * 3;
+            nycParticle.style.width = `${nycSize}px`;
+            nycParticle.style.height = `${nycSize}px`;
+            
+            nycBurst.appendChild(nycParticle);
+        }
+        
+        setTimeout(function() { nycBurst.remove(); }, 1500);
+    }, 800);
 }
 
 function nycShowNextYearCountdown() {
@@ -3617,8 +3715,11 @@ function nycUpdateGlow(progress) {
     `;
 }
 
-// Full-site firework functions
+// Full-site firework functions - ONLY CALLED ON NEW YEAR
 function nycCreateFullSiteFirework() {
+    // Double-check it's actually New Year
+    if (!isPHNewYear() && !TEST_FIREWORKS) return;
+    
     const nycX = Math.random() * window.innerWidth;
     const nycY = window.innerHeight;
     const nycHue = Math.random() * 360;
@@ -3692,6 +3793,9 @@ function nycCreateFullSiteFireworkBurst(nycX, nycY, nycHue) {
 }
 
 function nycCreateConfetti() {
+    // Double-check it's actually New Year
+    if (!isPHNewYear() && !TEST_FIREWORKS) return;
+    
     const nycConfettiCount = 15;
     for (let i = 0; i < nycConfettiCount; i++) {
         const nycConfetti = document.createElement("div");
@@ -3719,7 +3823,21 @@ function nycCreateConfetti() {
 }
 
 function nycStartFullSiteFireworks() {
+    // Double-check it's actually New Year
+    if (!isPHNewYear() && !TEST_FIREWORKS) {
+        console.log("Not New Year in PH time - fireworks cancelled");
+        return;
+    }
+    
+    console.log("Starting New Year fireworks for PH time!");
+    
     const nycFireworkInterval = setInterval(function() {
+        // Check again each time
+        if (!isPHNewYear() && !TEST_FIREWORKS) {
+            clearInterval(nycFireworkInterval);
+            return;
+        }
+        
         // Launch fireworks
         const nycFireworkCount = 1 + Math.floor(Math.random() * 2);
         
@@ -3764,7 +3882,10 @@ function nycStartFullSiteFireworks() {
     const nycTimeUntilEnd = phEndOfNewYearsDay - phNow;
     
     if (nycTimeUntilEnd > 0) {
-        setTimeout(function() { clearInterval(nycFireworkInterval); }, nycTimeUntilEnd);
+        setTimeout(function() { 
+            console.log("Stopping New Year fireworks (end of Jan 1st PH time)");
+            clearInterval(nycFireworkInterval); 
+        }, nycTimeUntilEnd);
     }
 }
 })();
