@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Debt POS System</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://hallow-gate.github.io/pos/images/images/favicon-32x32.png">
+
+    <!-- QR Code Scanner -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --success-color: #1cc88a;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --light-bg: #f8f9fc;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            background-color: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+            font-weight: 700;
+            padding: 0.75rem 1.25rem;
+        }
+        
+        .stat-card {
+            border-left: 0.25rem solid var(--primary-color);
+        }
+        
+        .stat-card.sales {
+            border-left-color: var(--success-color);
+        }
+        
+        .stat-card.customers {
+            border-left-color: var(--primary-color);
+        }
+        
+        .stat-card.products {
+            border-left-color: var(--warning-color);
+        }
+        
+        .stat-card.pending {
+            border-left-color: var(--danger-color);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 700;
+            color: #6e707e;
+        }
+        
+        .suggestions-list {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ddd;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 100%;
+            display: none;
+        }
+        
+        .suggestions-list div {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .suggestions-list div:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .camera-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        #scanner-video {
+            width: 100%;
+            border-radius: 8px;
+        }
+        
+        .tab-content {
+            min-height: 500px;
+        }
+        
+        .cart-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        
+        .receipt {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 20px;
+            border: 1px dashed #ccc;
+        }
+        
+        .firebase-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .firebase-connected {
+            background-color: var(--success-color);
+        }
+        
+        .firebase-disconnected {
+            background-color: var(--danger-color);
+        }
+        
+        /* Improved purchase history table for mobile */
+        #purchase-history-table .products-cell {
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.2;
+        }
+        
+        .purchase-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+        
+        /* Edit mode styles */
+        .edit-mode input {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .edit-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        /* Customer details header */
+        .customer-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        /* Responsive styles for small devices */
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+            
+            .table-responsive .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .card-header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.875rem;
+            }
+            
+            .btn {
+                font-size: 0.875rem;
+            }
+            
+            .row.mt-4 {
+                margin-top: 1rem !important;
+            }
+            
+            .col-md-4, .col-md-6, .col-md-8 {
+                margin-bottom: 1rem;
+            }
+            
+            .navbar-text {
+                font-size: 0.875rem;
+            }
+            
+            .h5 {
+                font-size: 1.1rem;
+            }
+            
+            .text-xs {
+                font-size: 0.7rem;
+            }
+            
+            /* Purchase history table adjustments */
+            #purchase-history-table {
+                font-size: 0.75rem;
+            }
+            
+            #purchase-history-table th,
+            #purchase-history-table td {
+                padding: 0.4rem;
+            }
+            
+            #purchase-history-table .products-cell {
+                max-width: 200px;
+            }
+            
+            .purchase-actions {
+                flex-direction: column;
+                gap: 2px;
+            }
+            
+            .purchase-actions .btn {
+                padding: 0.2rem 0.4rem;
+                font-size: 0.7rem;
+            }
+            
+            /* Customer details header */
+            .customer-details-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+            
+            .btn {
+                font-size: 0.8rem;
+                padding: 0.375rem 0.5rem;
+            }
+            
+            .d-md-flex {
+                display: flex !important;
+            }
+            
+            .me-md-2 {
+                margin-right: 0.5rem !important;
+            }
+            
+            /* Stack columns on very small screens */
+            .row > [class*="col-"] {
+                margin-bottom: 1rem;
+            }
+            
+            /* Adjust purchase history table for very small screens */
+            #purchase-history-table {
+                font-size: 0.7rem;
+            }
+            
+            #purchase-history-table .products-cell {
+                max-width: 150px;
+                font-size: 0.65rem;
+            }
+            
+            #purchase-history-table th:nth-child(1),
+            #purchase-history-table td:nth-child(1) {
+                width: 80px;
+            }
+            
+            #purchase-history-table th:nth-child(3),
+            #purchase-history-table td:nth-child(3) {
+                width: 60px;
+            }
+            
+            #purchase-history-table th:nth-child(4),
+            #purchase-history-table td:nth-child(4) {
+                width: 70px;
+            }
+            
+            #purchase-history-table th:nth-child(5),
+            #purchase-history-table td:nth-child(5) {
+                width: 60px;
+            }
+        }
+
+        /* Thermal printer styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #receipt-content, #receipt-content * {
+                visibility: visible;
+            }
+            #receipt-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                max-width: 80mm;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1;
+                padding: 5px;
+                margin: 0;
+            }
+            .receipt {
+                border: none !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            h4, h5, h6 {
+                margin: 5px 0;
+                font-size: 14px;
+            }
+            p {
+                margin: 3px 0;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            hr {
+                margin: 5px 0;
+                border: none;
+                border-top: 1px dashed #000;
+            }
+        }
+            /* Snowflakes container */
+        #snowflakes-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        
+        .snowflake {
+            position: absolute;
+            top: -20px;
+            color: white;
+            font-size: 1em;
+            opacity: 0.8;
+            user-select: none;
+            pointer-events: none;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-20px) translateX(0) rotate(0deg);
+                opacity: 0.8;
+            }
+            25% {
+                transform: translateY(25vh) translateX(var(--sway)) rotate(90deg);
+            }
+            50% {
+                transform: translateY(50vh) translateX(calc(var(--sway) * -0.5)) rotate(180deg);
+            }
+            75% {
+                transform: translateY(75vh) translateX(calc(var(--sway) * 0.3)) rotate(270deg);
+            }
+            100% {
+                transform: translateY(100vh) translateX(calc(var(--sway) * -0.2)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .snowflake {
+            animation: fall linear infinite;
+        }
+        
+        /* ===== LOGIN OVERLAY STYLES ===== */
+       #login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', sans-serif;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+    
+    #login-overlay:not(.active) {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+    
+    .login-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        pointer-events: all;
+    }
+        
+        .login-wrapper {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .login-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+       .bg-circle {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(78, 115, 223, 0.1) 0%, rgba(78, 115, 223, 0) 70%);
+        animation: float 20s infinite linear;
+        pointer-events: none;
+    }
+        
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+        
+        .bg-circle:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            bottom: 100px;
+            right: 150px;
+            animation-delay: -5s;
+            animation-duration: 25s;
+        }
+        
+        .bg-circle:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            top: 50%;
+            left: 80%;
+            animation-delay: -10s;
+            animation-duration: 15s;
+        }
+        
+        .bg-circle:nth-child(4) {
+            width: 250px;
+            height: 250px;
+            bottom: -50px;
+            left: 50%;
+            animation-delay: -7s;
+        }
+        
+        .bg-circle:nth-child(5) {
+            width: 180px;
+            height: 180px;
+            top: 70%;
+            left: 10%;
+            animation-delay: -12s;
+            animation-duration: 22s;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+            33% {
+                transform: translate(30px, -30px) rotate(120deg);
+            }
+            66% {
+                transform: translate(-20px, 20px) rotate(240deg);
+            }
+            100% {
+                transform: translate(0, 0) rotate(360deg);
+            }
+        }
+        
+        /* Login Card */
+        .login-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 40px 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 
+            0 20px 40px rgba(0, 0, 0, 0.3),
+            0 0 100px rgba(78, 115, 223, 0.15),
+            inset 0 0 20px rgba(255, 255, 255, 0.05);
+        position: relative;
+        overflow: visible;
+        z-index: 100;
+        pointer-events: all;
+    }
+        
+        #login-overlay.active .login-card {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+        }
+        
+        .logo-outer-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4e73df 0%, #36b9cc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: rotate-ring 10s linear infinite;
+            box-shadow: 0 0 30px rgba(78, 115, 223, 0.5);
+        }
+        
+        .logo-inner-ring {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-icon {
+            font-size: 32px;
+            background: linear-gradient(135deg, #4e73df 0%, #36b9cc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        @keyframes rotate-ring {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .login-title {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0 0 10px 0;
+            letter-spacing: 1px;
+        }
+        
+        .login-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .login-form {
+        position: relative;
+        z-index: 101;
+        pointer-events: all;
+        }
+        
+        .form-group {
+            margin-bottom: 30px;
+        }
+        
+        .input-container {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #4e73df;
+            font-size: 18px;
+            z-index: 2;
+        }
+        
+        .form-input {
+        width: 100%;
+        padding: 15px 15px 15px 50px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: #fff;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 102;
+        pointer-events: all;
+        cursor: text;
+    }
+        
+      .form-input:focus {
+        outline: none;
+        border-color: #4e73df;
+        box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.2);
+        background: rgba(255, 255, 255, 0.1);
+    }
+        
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .input-underline {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #4e73df, #36b9cc);
+            transform: translateX(-50%);
+            transition: width 0.3s ease;
+        }
+        
+        .form-input:focus ~ .input-underline {
+            width: 100%;
+        }
+        
+        .login-button {
+        width: 100%;
+        padding: 18px 30px;
+        background: linear-gradient(135deg, #4e73df 0%, #36b9cc 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        pointer-events: all;
+        z-index: 102;
+    }
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(78, 115, 223, 0.4);
+        }
+        
+        .login-button:active {
+            transform: translateY(0);
+        }
+        
+        .button-glow {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            top: 0;
+            left: -100%;
+            animation: glow-slide 2s infinite;
+        }
+        
+        @keyframes glow-slide {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+        
+        .button-text {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .button-loader {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .loader-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: loader-bounce 1.4s infinite ease-in-out;
+        }
+        
+        .loader-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .loader-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes loader-bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            min-height: 20px;
+            text-align: center;
+        }
+        
+        .status-message.error {
+            background: rgba(231, 74, 59, 0.1);
+            color: #e74a3b;
+            border: 1px solid rgba(231, 74, 59, 0.3);
+        }
+        
+        .status-message.success {
+            background: rgba(28, 200, 138, 0.1);
+            color: #1cc88a;
+            border: 1px solid rgba(28, 200, 138, 0.3);
+        }
+        
+        .firebase-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .firebase-info i {
+            color: #ffcb2b;
+        }
+        
+        .version-info {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        
+        .login-effects {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+        
+        .effect-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.1), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.1), transparent),
+                radial-gradient(2px 2px at 50px 160px, rgba(255, 255, 255, 0.1), transparent),
+                radial-gradient(2px 2px at 90px 40px, rgba(255, 255, 255, 0.1), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255, 255, 255, 0.1), transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255, 255, 255, 0.1), transparent);
+            background-repeat: repeat;
+            animation: particles-move 20s infinite linear;
+        }
+        
+        .effect-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.3;
+        }
+        
+        @keyframes particles-move {
+            100% {
+                background-position: 0 1000px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .login-wrapper {
+                padding: 15px;
+            }
+            
+            .login-card {
+                padding: 30px 20px;
+            }
+            
+            .logo-container {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .logo-inner-ring {
+                width: 56px;
+                height: 56px;
+            }
+            
+            .logo-icon {
+                font-size: 26px;
+            }
+            
+            .login-title {
+                font-size: 28px;
+            }
+            
+            .login-subtitle {
+                font-size: 16px;
+            }
+        }
+        .notification-preview {
+            background: #f8f9fc;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+        .notification-preview small {
+            color: #6c757d;
+        }
+    </style>
+</head>
+    
+<body>
+    
+ <div id="login-overlay" class="active">
+    <div class="login-container">
+        <div class="login-wrapper">
+            <div class="login-bg">
+                <div class="bg-circle"></div>
+                <div class="bg-circle"></div>
+                <div class="bg-circle"></div>
+                <div class="bg-circle"></div>
+                <div class="bg-circle"></div>
+            </div>
+            
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="logo-container">
+                        <div class="logo-outer-ring">
+                            <div class="logo-inner-ring">
+                                <i class="fas fa-cash-register logo-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <h1 class="login-title">Marnie Store</h1>
+                    <p class="login-subtitle">Welcome Back</p>
+                </div>
+                
+                <div class="login-form">
+                    <div class="form-group">
+                        <div class="input-container">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input type="email" id="login-email" placeholder="Email Address" class="form-input" autocomplete="email" required>
+                            <div class="input-underline"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="input-container">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="password" id="login-password" placeholder="Password" class="form-input" autocomplete="current-password" required>
+                            <div class="input-underline"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button id="login-btn" class="login-button" type="button">
+                            <span class="button-text">Sign In</span>
+                            <div class="button-loader">
+                                <div class="loader-dot"></div>
+                                <div class="loader-dot"></div>
+                                <div class="loader-dot"></div>
+                            </div>
+                            <div class="button-glow"></div>
+                        </button>
+                    </div>
+                    
+                    <div class="form-footer">
+                        <div class="status-message" id="login-status"></div>
+                        <div class="firebase-info">
+                            <i class="fas fa-database"></i>
+                            <span>Secured by Firebase</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="login-effects">
+                    <div class="effect-particles"></div>
+                    <div class="effect-grid"></div>
+                </div>
+            </div>
+            
+            <div class="version-info">
+                <span>POS System v2.1 • Secure Login</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cash-register me-2"></i>Debt POS System
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="navbar-text me-3">
+                    <span class="firebase-status firebase-connected" id="firebase-status"></span>
+                    <span id="connection-status">Connected to Firebase</span>
+                </span>
+                <span class="navbar-text me-3" id="current-date"></span>
+                <button class="btn btn-outline-light btn-sm" id="logout-btn" style="display: none;">
+                    <i class="fas fa-sign-out-alt me-1"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+     
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <div id="snowflakes-container"></div>
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs" id="posTabs" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab">Dashboard</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab">Products</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="purchase-tab" data-bs-toggle="tab" data-bs-target="#purchase" type="button" role="tab">New Purchase</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab">Customers</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab">Notifications</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Settings</button></li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="posTabsContent">
+            <!-- Dashboard Tab (unchanged) -->
+            <div class="tab-pane fade show active" id="dashboard" role="tabpanel"><div class="row mt-4"><div class="col-xl-3 col-md-6 mb-4"><div class="card stat-card sales h-100"><div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Sales</div><div class="h5 mb-0 font-weight-bold text-gray-800" id="total-sales">$0.00</div></div><div class="col-auto"><i class="fas fa-dollar-sign fa-2x text-gray-300"></i></div></div></div></div></div><div class="col-xl-3 col-md-6 mb-4"><div class="card stat-card customers h-100"><div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Customers</div><div class="h5 mb-0 font-weight-bold text-gray-800" id="total-customers">0</div></div><div class="col-auto"><i class="fas fa-users fa-2x text-gray-300"></i></div></div></div></div></div><div class="col-xl-3 col-md-6 mb-4"><div class="card stat-card products h-100"><div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Total Products</div><div class="h5 mb-0 font-weight-bold text-gray-800" id="total-products">0</div></div><div class="col-auto"><i class="fas fa-boxes fa-2x text-gray-300"></i></div></div></div></div></div><div class="col-xl-3 col-md-6 mb-4"><div class="card stat-card pending h-100"><div class="card-body"><div class="row no-gutters align-items-center"><div class="col mr-2"><div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Pending Payments</div><div class="h5 mb-0 font-weight-bold text-gray-800" id="pending-payments">0</div></div><div class="col-auto"><i class="fas fa-clock fa-2x text-gray-300"></i></div></div></div></div></div></div><div class="row"><div class="col-12"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">Recent Transactions</h6></div><div class="card-body"><div class="table-responsive"><table class="table table-bordered" id="recent-transactions"><thead><tr><th>Customer</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody></tbody></table></div></div></div></div></div></div>
+            <!-- Products Tab (unchanged) -->
+            <div class="tab-pane fade" id="products" role="tabpanel"><div class="row mt-4"><div class="col-md-6"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">Add New Product</h6></div><div class="card-body"><form id="product-form"><div class="mb-3"><label for="product-code" class="form-label">Product Code</label><input type="text" class="form-control" id="product-code" required></div><div class="mb-3"><label for="product-name" class="form-label">Product Name</label><input type="text" class="form-control" id="product-name" required></div><div class="mb-3"><label for="product-price" class="form-label">Price (₱)</label><input type="number" step="0.01" class="form-control" id="product-price" required></div><div class="d-grid gap-2 d-md-flex justify-content-md-end"><button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i> Add Product</button><button type="button" class="btn btn-success" id="scan-qr-btn"><i class="fas fa-qrcode me-1"></i> Scan QR</button><button type="button" class="btn btn-warning" id="generate-qr-btn"><i class="fas fa-barcode me-1"></i> Generate QR</button></div></form></div></div></div><div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between align-items-center"><h6 class="m-0 font-weight-bold">Product List</h6><div class="input-group" style="width: auto;"><input type="text" class="form-control" placeholder="Search products..." id="product-search"></div></div><div class="card-body"><div class="table-responsive"><table class="table table-bordered" id="products-table"><thead><tr><th>Code</th><th>Name</th><th>Price</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div></div></div></div></div>
+            <!-- Purchase Tab (unchanged) -->
+            <div class="tab-pane fade" id="purchase" role="tabpanel"><div class="row mt-4"><div class="col-md-4"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">Customer Information</h6></div><div class="card-body"><div class="mb-3"><label for="customer-name" class="form-label">Customer Name</label><input type="text" class="form-control" id="customer-name" placeholder="Start typing customer name..."><div class="suggestions-list" id="customer-suggestions"></div></div><div class="mb-3"><label for="customer-phone" class="form-label">Phone (Optional)</label><input type="text" class="form-control" id="customer-phone"></div><div class="mb-3"><label for="customer-email" class="form-label">Email (Optional)</label><input type="email" class="form-control" id="customer-email"></div></div></div><div class="card mt-4"><div class="card-header"><h6 class="m-0 font-weight-bold">Add Product to Cart</h6></div><div class="card-body"><div class="mb-3"><label for="product-search-purchase" class="form-label">Search Product</label><input type="text" class="form-control" id="product-search-purchase" placeholder="Search by name or code..."><div class="suggestions-list" id="product-suggestions"></div></div><div class="mb-3"><label for="quantity" class="form-label">Quantity</label><input type="number" class="form-control" id="quantity" value="1" min="1"></div><div class="d-grid gap-2"><button type="button" class="btn btn-primary" id="add-to-cart-btn"><i class="fas fa-cart-plus me-1"></i> Add to Cart</button><button type="button" class="btn btn-success" id="scan-barcode-btn"><i class="fas fa-barcode me-1"></i> Scan Barcode</button></div></div></div></div><div class="col-md-8"><div class="card"><div class="card-header d-flex justify-content-between align-items-center"><h6 class="m-0 font-weight-bold">Shopping Cart</h6><div><span class="fw-bold fs-5" id="cart-total">Total: ₱0.00</span></div></div><div class="card-body"><div class="table-responsive"><table class="table table-bordered" id="cart-table"><thead><tr><th>Product</th><th>Price</th><th>Quantity</th><th>Subtotal</th><th>Actions</th></tr></thead><tbody></tbody></table></div><div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3"><button type="button" class="btn btn-danger me-md-2" id="clear-cart-btn"><i class="fas fa-trash me-1"></i> Clear Cart</button><button type="button" class="btn btn-success" id="finalize-purchase-btn"><i class="fas fa-check me-1"></i> Finalize Purchase</button></div></div></div></div></div></div>
+            <!-- Customers Tab (unchanged) -->
+            <div class="tab-pane fade" id="customers" role="tabpanel"><div class="row mt-4"><div class="col-md-4"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">Customer Search</h6></div><div class="card-body"><div class="mb-3"><input type="text" class="form-control" id="customer-search" placeholder="Search customers..."></div><div class="table-responsive"><table class="table table-bordered" id="customers-table"><thead><tr><th>Name</th><th>Phone</th><th>Total</th></tr></thead><tbody></tbody></table></div></div></div></div><div class="col-md-8"><div class="card"><div class="card-header customer-details-header"><h6 class="m-0 font-weight-bold">Customer Details</h6><div><button type="button" class="btn btn-primary" id="print-customer-purchases-btn"><i class="fas fa-print me-1"></i> Print Customer Purchases</button><button type="button" class="btn btn-warning ms-2" id="edit-customer-btn" style="display:none;"><i class="fas fa-edit me-1"></i> Edit</button><button type="button" class="btn btn-danger ms-2" id="delete-customer-btn" style="display:none;"><i class="fas fa-trash me-1"></i> Delete</button></div></div><div class="card-body"><div id="customer-details"><p class="text-muted">Select a customer to view details</p></div></div></div><div class="card mt-4"><div class="card-header"><h6 class="m-0 font-weight-bold">Purchase History</h6></div><div class="card-body"><div class="table-responsive"><table class="table table-bordered" id="purchase-history-table"><thead><tr><th>Date</th><th>Products</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div></div></div></div></div>
+            
+            <!-- NEW NOTIFICATIONS TAB -->
+            <div class="tab-pane fade" id="notifications" role="tabpanel">
+                <div class="row mt-4">
+                    <div class="col-md-5">
+                        <div class="card">
+                            <div class="card-header"><h6 class="m-0 font-weight-bold">Create Notification</h6></div>
+                            <div class="card-body">
+                                <form id="notification-form">
+                                    <div class="mb-3"><label class="form-label">Title</label><input type="text" class="form-control" id="notif-title" required></div>
+                                    <div class="mb-3"><label class="form-label">Message</label><textarea class="form-control" id="notif-message" rows="3" required></textarea></div>
+                                    <div class="mb-3"><label class="form-label">Sender Name</label><input type="text" class="form-control" id="notif-sender" required></div>
+                                    <input type="hidden" id="edit-notif-id" value="">
+                                    <div class="d-grid gap-2"><button type="submit" class="btn btn-primary" id="save-notif-btn"><i class="fas fa-paper-plane me-1"></i> Send Notification</button><button type="button" class="btn btn-secondary" id="cancel-edit-notif" style="display:none;">Cancel Edit</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card">
+                            <div class="card-header"><h6 class="m-0 font-weight-bold">All Notifications</h6></div>
+                            <div class="card-body" id="notifications-list" style="max-height:500px; overflow-y:auto;">
+                                <p class="text-muted">Loading notifications...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab (unchanged) -->
+            <div class="tab-pane fade" id="settings" role="tabpanel"><div class="row mt-4"><div class="col-md-6"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">Data Management</h6></div><div class="card-body"><div class="d-grid gap-2"><button type="button" class="btn btn-primary" id="export-data-btn"><i class="fas fa-download me-1"></i> Export Data to JSON</button><button type="button" class="btn btn-success" id="import-data-btn"><i class="fas fa-upload me-1"></i> Import Data from JSON</button><input type="file" id="import-file" style="display: none;" accept=".json"></div></div></div></div><div class="col-md-6"><div class="card"><div class="card-header"><h6 class="m-0 font-weight-bold">System Information</h6></div><div class="card-body"><p><strong>Debt POS System v2.0</strong></p><p>Firebase-powered Point of Sale system with debt tracking</p><p>Developed for Hallow Business Solutions</p><div class="mt-3"><p class="mb-1">Firebase Status: <span id="firebase-status-text" class="text-success">Connected</span></p><p class="mb-1">Database: <span id="database-info">Firestore</span></p><p class="mb-1">Logged in as: <span id="logged-in-user" class="text-primary"></span></p></div></div></div></div></div></div>
+        </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">QR Code Scanner</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="camera-container"><video id="scanner-video" autoplay playsinline></video></div><div class="text-center mt-3"><button type="button" class="btn btn-primary" id="start-scan-btn">Start Scan</button><button type="button"class="btn btn-secondary" id="stop-scan-btn">Stop Scan</button></div></div></div></div></div>
+
+    <!-- Receipt Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Purchase Receipt</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="receipt" id="receipt-content"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button><button type="button" class="btn btn-primary" id="print-receipt-btn">Print Standard</button><button type="button" class="btn btn-success" id="thermal-print-btn">Print Thermal</button></div></div></div></div>
+
+    <div id="nyc-wrapper"></div>
+    
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk", authDomain: "hallow-2c7e6.firebaseapp.com", projectId: "hallow-2c7e6", storageBucket: "hallow-2c7e6.firebasestorage.app", messagingSenderId: "310263322867", appId: "1:310263322867:web:3a5338621e8b75c163ff86", measurementId: "G-4P4D5W5PSE" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        class LoginSystem { 
+            constructor(){ this.uid=localStorage.getItem('pos_uid'); this.email=localStorage.getItem('pos_email'); this.user=null; this.isAuthenticated=false; this.init(); }
+            init(){ auth.onAuthStateChanged((user)=>{ if(user)this.handleLoginSuccess(user); else this.handleLogout(); }); this.checkAuthState(); this.setupLoginForm(); document.getElementById('logout-btn').addEventListener('click',()=>this.logout()); }
+            async checkAuthState(){ const user=auth.currentUser; if(user)this.handleLoginSuccess(user); else this.showLogin(); }
+            showLogin(){ const overlay=document.getElementById('login-overlay'); overlay.classList.add('active'); document.body.style.overflow='hidden'; document.querySelector('nav').style.display='none'; document.querySelector('.container-fluid').style.display='none'; document.getElementById('nyc-wrapper').style.display='none'; }
+            hideLogin(){ const overlay=document.getElementById('login-overlay'); overlay.classList.remove('active'); document.body.style.overflow='auto'; document.querySelector('nav').style.display='flex'; document.querySelector('.container-fluid').style.display='block'; document.getElementById('nyc-wrapper').style.display='block'; if(!window.posSystem)window.posSystem=new DebtPOSSystem(); }
+            setupLoginForm(){ document.getElementById('login-btn').addEventListener('click',()=>this.login()); }
+            async login(){ const email=document.getElementById('login-email').value.trim(); const password=document.getElementById('login-password').value; try{ await auth.signInWithEmailAndPassword(email,password); localStorage.setItem('pos_uid',auth.currentUser.uid); localStorage.setItem('pos_email',email); setTimeout(()=>this.hideLogin(),500); }catch(e){ alert('Login failed'); } }
+            handleLoginSuccess(user){ this.isAuthenticated=true; document.getElementById('logged-in-user').textContent=user.email; document.getElementById('logout-btn').style.display='block'; this.hideLogin(); }
+            handleLogout(){ localStorage.clear(); this.isAuthenticated=false; this.showLogin(); }
+            logout(){ auth.signOut(); this.handleLogout(); }
+            getCurrentUser(){ return auth.currentUser; }
+            isLoggedIn(){ return !!auth.currentUser; }
+        }
+
+        class DebtPOSSystem {
+            constructor(){ this.products=[]; this.customers=[]; this.purchases=[]; this.cart=[]; this.currentCustomer=null; this.currentProduct=null; this.selectedCustomerId=null; this.notifications=[]; this.init(); }
+            async init(){ if(!window.loginSystem?.isLoggedIn()) return; this.updateCurrentDate(); setInterval(()=>this.updateCurrentDate(),60000); await this.loadProducts(); await this.loadCustomers(); await this.loadPurchases(); await this.loadNotifications(); this.updateDashboard(); this.setupEventListeners(); this.updateConnectionStatus(); this.setupNotificationListeners(); }
+            updateCurrentDate(){ const now=new Date(); document.getElementById('current-date').textContent=now.toLocaleDateString()+' '+now.toLocaleTimeString(); }
+            updateConnectionStatus(){ document.getElementById('firebase-status').className='firebase-status firebase-connected'; document.getElementById('connection-status').textContent='Connected to Firebase'; }
+            async loadProducts(){ const snap=await db.collection('products').get(); this.products=snap.docs.map(d=>({id:d.id,...d.data()})); this.renderProducts(); }
+            async loadCustomers(){ const snap=await db.collection('customers').get(); this.customers=snap.docs.map(d=>({id:d.id,...d.data()})); this.renderCustomers(); }
+            async loadPurchases(){ const snap=await db.collection('purchases').get(); this.purchases=snap.docs.map(d=>{let data=d.data(); try{ data.product_data=JSON.parse(data.product_data||'[]'); }catch(e){data.product_data=[];} return{id:d.id,...data}; }); this.renderRecentTransactions(); }
+            renderProducts(){ const tbody=document.querySelector('#products-table tbody'); tbody.innerHTML=''; this.products.forEach(p=>{ const row=tbody.insertRow(); row.innerHTML=`<td>${p.product_code||p.id}</td><td>${p.name}</td><td>₱${p.price?.toFixed(2)||'0.00'}</td><td><button class="btn btn-sm btn-primary edit-product" data-id="${p.id}"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-danger delete-product ms-1" data-id="${p.id}"><i class="fas fa-trash"></i></button></td>`; }); document.getElementById('total-products').textContent=this.products.length; }
+            renderCustomers(){ const tbody=document.querySelector('#customers-table tbody'); tbody.innerHTML=''; this.customers.forEach(c=>{ const total=this.purchases.filter(p=>p.customer_id===c.id).reduce((s,p)=>s+(p.total_amount||0),0); const row=tbody.insertRow(); row.className='customer-row'; row.setAttribute('data-id',c.id); row.innerHTML=`<td>${c.name}</td><td>${c.phone||'N/A'}</td><td>₱${total.toFixed(2)}</td>`; }); document.getElementById('total-customers').textContent=this.customers.length; }
+            renderRecentTransactions(){ const tbody=document.querySelector('#recent-transactions tbody'); tbody.innerHTML=''; [...this.purchases].sort((a,b)=>new Date(b.purchase_date)-new Date(a.purchase_date)).slice(0,10).forEach(p=>{ const c=this.customers.find(c=>c.id===p.customer_id); const row=tbody.insertRow(); row.innerHTML=`<td>${c?.name||p.customer_name||'Unknown'}</td><td>₱${p.total_amount?.toFixed(2)||'0.00'}</td><td>${new Date(p.purchase_date).toLocaleDateString()}</td><td><span class="badge ${p.status==='paid'?'bg-success':'bg-warning'}">${p.status||'pending'}</span></td>`; }); const totalSales=this.purchases.reduce((s,p)=>s+(p.total_amount||0),0); const pending=this.purchases.filter(p=>p.status!=='paid').length; document.getElementById('total-sales').textContent=`₱${totalSales.toFixed(2)}`; document.getElementById('pending-payments').textContent=pending; }
+            updateDashboard(){ this.renderRecentTransactions(); }
+            
+            // NOTIFICATION METHODS
+            async loadNotifications(){ const snap=await db.collection('notifications').orderBy('notificationNumber','desc').get(); this.notifications=snap.docs.map(d=>({id:d.id,...d.data()})); this.renderNotifications(); }
+            renderNotifications(){ const container=document.getElementById('notifications-list'); if(!container)return; if(this.notifications.length===0){container.innerHTML='<p class="text-muted">No notifications yet.</p>'; return;} let html=''; this.notifications.forEach(notif=>{ html+=`<div class="notification-preview"><div class="d-flex justify-content-between"><strong>#${notif.notificationNumber} - ${notif.title}</strong><div><button class="btn btn-sm btn-warning edit-notif me-1" data-id="${notif.id}"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-danger delete-notif" data-id="${notif.id}"><i class="fas fa-trash"></i></button></div></div><p class="mb-1">${notif.message.substring(0,100)}${notif.message.length>100?'...':''}</p><small><i class="fas fa-user"></i> ${notif.senderName} | <i class="fas fa-calendar"></i> ${new Date(notif.date).toLocaleString()}</small></div>`; }); container.innerHTML=html; document.querySelectorAll('.edit-notif').forEach(btn=>btn.addEventListener('click',(e)=>{ const id=btn.getAttribute('data-id'); this.editNotification(id); })); document.querySelectorAll('.delete-notif').forEach(btn=>btn.addEventListener('click',(e)=>{ const id=btn.getAttribute('data-id'); this.deleteNotification(id); })); }
+            async getNextNotificationNumber(){ const snap=await db.collection('notifications').orderBy('notificationNumber','desc').limit(1).get(); if(snap.empty) return 1; return snap.docs[0].data().notificationNumber+1; }
+            setupNotificationListeners(){ const form=document.getElementById('notification-form'); if(form) form.addEventListener('submit',async(e)=>{ e.preventDefault(); await this.saveNotification(); }); document.getElementById('cancel-edit-notif')?.addEventListener('click',()=>{ document.getElementById('edit-notif-id').value=''; document.getElementById('notification-form').reset(); document.getElementById('cancel-edit-notif').style.display='none'; document.getElementById('save-notif-btn').innerHTML='<i class="fas fa-paper-plane me-1"></i> Send Notification'; }); }
+            async saveNotification(){ const id=document.getElementById('edit-notif-id').value; const title=document.getElementById('notif-title').value.trim(); const message=document.getElementById('notif-message').value.trim(); const senderName=document.getElementById('notif-sender').value.trim(); if(!title||!message||!senderName){alert('Please fill all fields');return;} const user=window.loginSystem?.getCurrentUser(); const data={title,message,senderName,date:new Date().toISOString(),createdBy:user?.email||'admin'}; if(id){ await db.collection('notifications').doc(id).update(data); alert('Notification updated'); }else{ const nextNum=await this.getNextNotificationNumber(); data.notificationNumber=nextNum; await db.collection('notifications').add(data); alert('Notification sent'); } this.resetNotificationForm(); await this.loadNotifications(); }
+            async editNotification(id){ const notif=this.notifications.find(n=>n.id===id); if(!notif)return; document.getElementById('edit-notif-id').value=id; document.getElementById('notif-title').value=notif.title; document.getElementById('notif-message').value=notif.message; document.getElementById('notif-sender').value=notif.senderName; document.getElementById('cancel-edit-notif').style.display='inline-block'; document.getElementById('save-notif-btn').innerHTML='<i class="fas fa-save me-1"></i> Update Notification'; }
+            async deleteNotification(id){ if(!confirm('Delete this notification?'))return; await db.collection('notifications').doc(id).delete(); await this.loadNotifications(); alert('Notification deleted'); }
+            resetNotificationForm(){ document.getElementById('edit-notif-id').value=''; document.getElementById('notification-form').reset(); document.getElementById('cancel-edit-notif').style.display='none'; document.getElementById('save-notif-btn').innerHTML='<i class="fas fa-paper-plane me-1"></i> Send Notification'; }
+            
+            // Existing methods (unchanged, but added notification load in init)
+            setupEventListeners(){ document.getElementById('product-form').addEventListener('submit',(e)=>{e.preventDefault();this.addProduct();}); document.getElementById('product-search').addEventListener('input',(e)=>this.filterProducts(e.target.value)); document.getElementById('customer-search').addEventListener('input',(e)=>this.filterCustomers(e.target.value)); document.getElementById('product-search-purchase').addEventListener('input',(e)=>this.showProductSuggestions(e.target.value)); document.getElementById('customer-name').addEventListener('input',(e)=>this.showCustomerSuggestions(e.target.value)); document.getElementById('add-to-cart-btn').addEventListener('click',()=>this.addToCart()); document.getElementById('clear-cart-btn').addEventListener('click',()=>this.clearCart()); document.getElementById('finalize-purchase-btn').addEventListener('click',()=>this.finalizePurchase()); document.getElementById('export-data-btn').addEventListener('click',()=>this.exportData()); document.getElementById('import-data-btn').addEventListener('click',()=>document.getElementById('import-file').click()); document.getElementById('import-file').addEventListener('change',(e)=>this.importData(e.target.files[0])); document.getElementById('print-customer-purchases-btn').addEventListener('click',()=>this.printCustomerPurchases()); document.getElementById('edit-customer-btn').addEventListener('click',()=>this.startEditCustomer()); document.getElementById('delete-customer-btn').addEventListener('click',()=>this.deleteCustomerWithPurchases()); document.addEventListener('click',(e)=>{ if(e.target.closest('.customer-row')){ const row=e.target.closest('.customer-row'); this.selectedCustomerId=row.getAttribute('data-id'); this.showCustomerDetails(this.selectedCustomerId); } if(e.target.closest('.edit-product')){ const id=e.target.closest('.edit-product').getAttribute('data-id'); this.editProduct(id); } if(e.target.closest('.delete-product')){ const id=e.target.closest('.delete-product').getAttribute('data-id'); this.deleteProduct(id); } if(e.target.closest('.delete-purchase')){ const id=e.target.closest('.delete-purchase').getAttribute('data-id'); this.deletePurchase(id); } }); document.getElementById('scan-qr-btn').addEventListener('click',()=>{ alert('QR Scanner demo'); }); document.getElementById('generate-qr-btn').addEventListener('click',()=>{ alert('QR Generator demo'); }); document.getElementById('scan-barcode-btn').addEventListener('click',()=>{ alert('Barcode Scanner demo'); }); document.getElementById('start-scan-btn').addEventListener('click',()=>alert('Start scan')); document.getElementById('stop-scan-btn').addEventListener('click',()=>alert('Stop scan')); document.getElementById('print-receipt-btn').addEventListener('click',()=>this.printReceipt()); document.getElementById('thermal-print-btn').addEventListener('click',()=>this.printThermalReceipt()); }
+            async addProduct(){ const code=document.getElementById('product-code').value; const name=document.getElementById('product-name').value; const price=parseFloat(document.getElementById('product-price').value); if(!code||!name||isNaN(price))return alert('Fill all fields'); if(this.products.some(p=>p.product_code===code))return alert('Code exists'); const docRef=await db.collection('products').add({product_code:code,name:name,price:price,created_at:new Date()}); this.products.push({id:docRef.id,product_code:code,name:name,price:price}); document.getElementById('product-form').reset(); this.renderProducts(); alert('Product added'); }
+            filterProducts(term){ const rows=document.querySelectorAll('#products-table tbody tr'); rows.forEach(r=>{ const code=r.cells[0].innerText.toLowerCase(); const name=r.cells[1].innerText.toLowerCase(); r.style.display=code.includes(term.toLowerCase())||name.includes(term.toLowerCase())?'': 'none'; }); }
+            filterCustomers(term){ const rows=document.querySelectorAll('#customers-table tbody tr'); rows.forEach(r=>{ const name=r.cells[0].innerText.toLowerCase(); r.style.display=name.includes(term.toLowerCase())?'':'none'; }); }
+            showProductSuggestions(term){ const sug=document.getElementById('product-suggestions'); sug.innerHTML=''; if(!term){sug.style.display='none'; return;} const filtered=this.products.filter(p=>p.name.toLowerCase().includes(term.toLowerCase())||p.product_code.toLowerCase().includes(term.toLowerCase())); if(filtered.length===0){sug.style.display='none';return;} filtered.forEach(p=>{ const div=document.createElement('div'); div.textContent=`${p.product_code} - ${p.name} - ₱${p.price.toFixed(2)}`; div.addEventListener('click',()=>{ document.getElementById('product-search-purchase').value=p.name; this.currentProduct=p; sug.style.display='none'; }); sug.appendChild(div); }); sug.style.display='block'; }
+            showCustomerSuggestions(term){ const sug=document.getElementById('customer-suggestions'); sug.innerHTML=''; if(!term){sug.style.display='none';return;} const filtered=this.customers.filter(c=>c.name.toLowerCase().includes(term.toLowerCase())); if(filtered.length===0){sug.style.display='none';return;} filtered.forEach(c=>{ const div=document.createElement('div'); div.textContent=`${c.name}${c.phone?` - ${c.phone}`:''}`; div.addEventListener('click',()=>{ document.getElementById('customer-name').value=c.name; document.getElementById('customer-phone').value=c.phone||''; document.getElementById('customer-email').value=c.email||''; this.currentCustomer=c; sug.style.display='none'; }); sug.appendChild(div); }); sug.style.display='block'; }
+            addToCart(){ if(!this.currentProduct){alert('Select product');return;} const qty=parseInt(document.getElementById('quantity').value)||1; const existing=this.cart.find(i=>i.product_id===this.currentProduct.id); if(existing){ existing.quantity+=qty; existing.subtotal=existing.price*existing.quantity; }else{ this.cart.push({product_id:this.currentProduct.id,name:this.currentProduct.name,price:this.currentProduct.price,quantity:qty,subtotal:this.currentProduct.price*qty}); } this.renderCart(); this.currentProduct=null; document.getElementById('product-search-purchase').value=''; document.getElementById('quantity').value=1; }
+            renderCart(){ const tbody=document.querySelector('#cart-table tbody'); tbody.innerHTML=''; let total=0; this.cart.forEach((item,idx)=>{ total+=item.subtotal; const row=tbody.insertRow(); row.innerHTML=`<td>${item.name}</td><td>₱${item.price.toFixed(2)}</td><td><input type="number" class="form-control form-control-sm quantity-input" value="${item.quantity}" min="1" data-index="${idx}" style="width:80px"></td><td>₱${item.subtotal.toFixed(2)}</td><td><button class="btn btn-sm btn-danger remove-item" data-index="${idx}"><i class="fas fa-trash"></i></button></td>`; }); document.getElementById('cart-total').innerHTML=`Total: ₱${total.toFixed(2)}`; document.querySelectorAll('.quantity-input').forEach(inp=>inp.addEventListener('change',(e)=>{ const idx=parseInt(e.target.dataset.index); this.cart[idx].quantity=parseInt(e.target.value)||1; this.cart[idx].subtotal=this.cart[idx].price*this.cart[idx].quantity; this.renderCart(); })); document.querySelectorAll('.remove-item').forEach(btn=>btn.addEventListener('click',(e)=>{ const idx=parseInt(e.target.closest('.remove-item').dataset.index); this.cart.splice(idx,1); this.renderCart(); })); }
+            clearCart(){ this.cart=[]; this.renderCart(); }
+            async finalizePurchase(){ if(this.cart.length===0)return alert('Cart empty'); const custName=document.getElementById('customer-name').value; if(!custName)return alert('Customer name required'); let customer=this.currentCustomer; if(!customer){ const phone=document.getElementById('customer-phone').value; const email=document.getElementById('customer-email').value; const docRef=await db.collection('customers').add({name:custName,phone,email,created_at:new Date()}); customer={id:docRef.id,name:custName,phone,email}; this.customers.push(customer); this.renderCustomers(); } const total=this.cart.reduce((s,i)=>s+i.subtotal,0); const purchaseData={customer_id:customer.id,customer_name:customer.name,product_data:JSON.stringify(this.cart),total_amount:total,purchase_date:new Date().toISOString(),status:'pending'}; const docRef=await db.collection('purchases').add(purchaseData); this.purchases.push({id:docRef.id,...purchaseData,product_data:this.cart}); this.showReceipt(customer,total); this.clearCart(); document.getElementById('customer-name').value=''; document.getElementById('customer-phone').value=''; document.getElementById('customer-email').value=''; this.currentCustomer=null; await this.loadPurchases(); this.updateDashboard(); if(this.selectedCustomerId===customer.id) this.showCustomerDetails(customer.id); }
+            showReceipt(customer,total){ const rc=document.getElementById('receipt-content'); const now=new Date(); const user=window.loginSystem?.getCurrentUser(); rc.innerHTML=`<div class="text-center"><h4>Marnie Store</h4><p>Receipt</p></div><hr><p>Cashier: ${user?.email||'System'}</p><p>Customer: ${customer.name}</p><p>Date: ${now.toLocaleString()}</p><hr><table width="100%">${this.cart.map(i=>`<tr><td>${i.name}</td><td align="right">${i.quantity} x ₱${i.price.toFixed(2)}</td><td align="right">₱${i.subtotal.toFixed(2)}</td></tr>`).join('')}<tr><td colspan="3"><hr></td></tr><tr><td><strong>Total:</strong></td><td></td><td align="right"><strong>₱${total.toFixed(2)}</strong></td></tr></table><hr><p class="text-center">Thank you! Status: PENDING</p>`; new bootstrap.Modal(document.getElementById('receiptModal')).show(); }
+            printReceipt(){ const content=document.getElementById('receipt-content').innerHTML; const w=window.open('','_blank'); w.document.write(`<html><head><title>Receipt</title><style>body{font-family:Arial;margin:20px;}</style></head><body>${content}</body></html>`); w.document.close(); w.print(); }
+            printThermalReceipt(){ const content=document.getElementById('receipt-content').innerHTML; const w=window.open('','_blank'); w.document.write(`<!DOCTYPE html><html><head><title>Thermal Receipt</title><style>@media print{body{width:80mm;font-family:'Courier New';font-size:12px;margin:0;padding:5px;}}</style></head><body onload="window.print();window.close();">${content}</body></html>`); w.document.close(); }
+            showCustomerDetails(custId){ const cust=this.customers.find(c=>c.id===custId); if(!cust)return; this.selectedCustomerId=custId; document.getElementById('edit-customer-btn').style.display='inline-block'; document.getElementById('delete-customer-btn').style.display='inline-block'; const purchases=this.purchases.filter(p=>p.customer_id===custId); const total=purchases.reduce((s,p)=>s+(p.total_amount||0),0); document.getElementById('customer-details').innerHTML=`<h5>${cust.name}</h5><p><strong>Phone:</strong> ${cust.phone||'N/A'}</p><p><strong>Email:</strong> ${cust.email||'N/A'}</p><p><strong>Total Purchases:</strong> ₱${total.toFixed(2)}</p><p><strong>Orders:</strong> ${purchases.length}</p>`; const historyTbody=document.querySelector('#purchase-history-table tbody'); historyTbody.innerHTML=''; purchases.forEach(p=>{ let productList=''; if(p.product_data&&p.product_data.length)productList=p.product_data.map(i=>`${i.name} (${i.quantity})`).join(', '); else productList='No products'; const row=historyTbody.insertRow(); row.innerHTML=`<td>${new Date(p.purchase_date).toLocaleDateString()}</td><td class="products-cell">${productList}</td><td>₱${p.total_amount?.toFixed(2)||'0.00'}</td><td><span class="badge ${p.status==='paid'?'bg-success':'bg-warning'}">${p.status||'pending'}</span></td><td><button class="btn btn-sm btn-primary view-receipt" data-id="${p.id}"><i class="fas fa-receipt"></i></button><button class="btn btn-sm btn-danger delete-purchase ms-1" data-id="${p.id}"><i class="fas fa-trash"></i></button></td>`; }); document.querySelectorAll('.view-receipt').forEach(btn=>btn.addEventListener('click',(e)=>{ const pid=e.target.closest('.view-receipt').dataset.id; this.viewPurchaseReceipt(pid); })); }
+            viewPurchaseReceipt(pid){ const p=this.purchases.find(p=>p.id===pid); if(!p)return; const c=this.customers.find(c=>c.id===p.customer_id); const rc=document.getElementById('receipt-content'); rc.innerHTML=`<div class="text-center"><h4>Marnie Store</h4><p>Receipt</p></div><hr><p>Customer: ${c?.name||p.customer_name}</p><p>Date: ${new Date(p.purchase_date).toLocaleString()}</p><hr><table width="100%">${p.product_data.map(i=>`<tr><td>${i.name}</td><td align="right">${i.quantity} x ₱${i.price.toFixed(2)}</td><td align="right">₱${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}<tr><td colspan="3"><hr></td></tr><tr><td><strong>Total:</strong></td><td></td><td align="right"><strong>₱${p.total_amount.toFixed(2)}</strong></td></tr></table><hr><p class="text-center">Thank you! Status: ${p.status?.toUpperCase()||'PENDING'}</p>`; new bootstrap.Modal(document.getElementById('receiptModal')).show(); }
+            printCustomerPurchases(){ if(!this.selectedCustomerId)return alert('Select customer first'); const cust=this.customers.find(c=>c.id===this.selectedCustomerId); if(!cust)return; const purchases=this.purchases.filter(p=>p.customer_id===this.selectedCustomerId); const total=purchases.reduce((s,p)=>s+(p.total_amount||0),0); let html=`<html><head><title>Customer Report</title><style>body{font-family:Arial;margin:20px;}</style></head><body><h3>Marnie Store</h3><h4>Customer: ${cust.name}</h4><p>Phone: ${cust.phone||'N/A'}</p><p>Total Purchases: ₱${total.toFixed(2)}</p><hr>${purchases.map(p=>`<div><strong>${new Date(p.purchase_date).toLocaleDateString()}</strong> - ₱${p.total_amount.toFixed(2)}<br>Items: ${p.product_data.map(i=>`${i.name} x${i.quantity}`).join(', ')}</div><hr>`).join('')}</body></html>`; const w=window.open('','_blank'); w.document.write(html); w.document.close(); w.print(); }
+            async deletePurchase(id){ if(!confirm('Delete this purchase?'))return; await db.collection('purchases').doc(id).delete(); this.purchases=this.purchases.filter(p=>p.id!==id); await this.loadPurchases(); this.updateDashboard(); if(this.selectedCustomerId)this.showCustomerDetails(this.selectedCustomerId); alert('Purchase deleted'); }
+            async deleteProduct(id){ if(!confirm('Delete product?'))return; await db.collection('products').doc(id).delete(); this.products=this.products.filter(p=>p.id!==id); this.renderProducts(); alert('Product deleted'); }
+            editProduct(id){ alert('Edit product: would open edit modal in full version'); }
+            async deleteCustomerWithPurchases(){ if(!this.selectedCustomerId){alert('No customer selected');return;} if(!confirm('WARNING: This will delete the customer AND all their purchase records! Cannot be undone. Continue?'))return; const custId=this.selectedCustomerId; const purchasesToDelete=this.purchases.filter(p=>p.customer_id===custId); for(const p of purchasesToDelete){ await db.collection('purchases').doc(p.id).delete(); } await db.collection('customers').doc(custId).delete(); this.customers=this.customers.filter(c=>c.id!==custId); this.purchases=this.purchases.filter(p=>p.customer_id!==custId); this.renderCustomers(); this.selectedCustomerId=null; document.getElementById('customer-details').innerHTML='<p class="text-muted">Select a customer to view details</p>'; document.querySelector('#purchase-history-table tbody').innerHTML=''; document.getElementById('edit-customer-btn').style.display='none'; document.getElementById('delete-customer-btn').style.display='none'; await this.loadPurchases(); this.updateDashboard(); alert('Customer and all associated purchases deleted.'); }
+            startEditCustomer(){ if(!this.selectedCustomerId)return; const cust=this.customers.find(c=>c.id===this.selectedCustomerId); if(!cust)return; const newName=prompt('Edit Customer Name:',cust.name); if(newName&&newName.trim())cust.name=newName.trim(); const newPhone=prompt('Edit Phone:',cust.phone||''); if(newPhone!==null)cust.phone=newPhone; const newEmail=prompt('Edit Email:',cust.email||''); if(newEmail!==null)cust.email=newEmail; db.collection('customers').doc(cust.id).update({name:cust.name,phone:cust.phone,email:cust.email,updated_at:new Date()}).then(()=>{ this.renderCustomers(); this.showCustomerDetails(cust.id); alert('Customer updated'); }).catch(e=>alert('Update failed')); }
+            exportData(){ const data={products:this.products,customers:this.customers,purchases:this.purchases}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`pos_backup_${new Date().toISOString().slice(0,19)}.json`; a.click(); URL.revokeObjectURL(url); }
+            importData(file){ if(!file)return; const reader=new FileReader(); reader.onload=e=>{ const data=JSON.parse(e.target.result); if(confirm(`Import ${data.products?.length||0} products, ${data.customers?.length||0} customers?`))alert('Import demo - would sync to Firebase'); }; reader.readAsText(file); document.getElementById('import-file').value=''; }
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{ window.loginSystem=new LoginSystem(); });
+    </script>
+</body>
+</html>
