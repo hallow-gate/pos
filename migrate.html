@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Uploader - Exact POS Structure</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <h1>Upload POS Data to Firebase</h1>
+    <p>Follows EXACT structure from HTML POS system</p>
+    
+    <div>
+        <input type="file" id="jsonFile" accept=".json">
+        <button onclick="uploadData()">Upload to Firebase</button>
+        <button onclick="clearFirestore()" style="background-color: #dc3545; color: white;">Clear ALL Data</button>
+    </div>
+    
+    <div id="status" style="margin-top: 20px; padding: 10px; font-family: monospace; max-height: 500px; overflow-y: auto; background: #f5f5f5;"></div>
+
+    <script>
+      const firebaseConfig = {
+  apiKey: "AIzaSyBsfInpkC35f2ZIaeKyiysPaHxARizICmk",
+  authDomain: "hallow-2c7e6.firebaseapp.com",
+  projectId: "hallow-2c7e6",
+  storageBucket: "hallow-2c7e6.firebasestorage.app",
+  messagingSenderId: "310263322867",
+  appId: "1:310263322867:web:3a5338621e8b75c163ff86",
+  measurementId: "G-4P4D5W5PSE"
+      };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let stats = { uploaded: 0, errors: 0 };
+
+        function log(msg, isError = false) {
+            const div = document.getElementById('status');
+            const line = document.createElement('div');
+            line.textContent = msg;
+            line.style.color = isError ? '#dc3545' : '#28a745';
+            line.style.margin = '2px 0';
+            line.style.fontSize = '12px';
+            div.appendChild(line);
+            div.scrollTop = div.scrollHeight;
+            console.log(msg);
+        }
+
+        async function uploadData() {
+            const file = document.getElementById('jsonFile').files[0];
+            if (!file) return alert('Select a JSON file');
+            
+            document.getElementById('status').innerHTML = '';
+            stats = { uploaded: 0, errors: 0 };
+            
+            try {
+                const data = JSON.parse(await file.text());
+                log(`📁 Loaded: ${data.products?.length || 0} products, ${data.customers?.length || 0} customers, ${data.purchases?.length || 0} purchases`);
+                
+                // Upload Products
+                if (data.products) {
+                    log(`\n📦 Uploading ${data.products.length} products...`);
+                    for (const item of data.products) {
+                        await uploadDocument('products', item.id, transformProduct(item));
+                    }
+                }
+                
+                // Upload Customers
+                if (data.customers) {
+                    log(`\n👥 Uploading ${data.customers.length} customers...`);
+                    for (const item of data.customers) {
+                        await uploadDocument('customers', item.id, transformCustomer(item));
+                    }
+                }
+                
+                // Upload Purchases
+                if (data.purchases) {
+                    log(`\n🧾 Uploading ${data.purchases.length} purchases...`);
+                    for (const item of data.purchases) {
+                        await uploadDocument('purchases', item.id, transformPurchase(item));
+                    }
+                }
+                
+                log(`\n✅ DONE! Uploaded: ${stats.uploaded}, Errors: ${stats.errors}`);
+                
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, true);
+            }
+        }
+        
+        async function uploadDocument(collection, id, data) {
+            if (!id) {
+                log(`  ⚠️ Skipping ${collection} item without ID`, true);
+                stats.errors++;
+                return;
+            }
+            
+            try {
+                await db.collection(collection).doc(id).set(data, { merge: true });
+                log(`  ✅ ${collection}/${id.substring(0, 8)}...`);
+                stats.uploaded++;
+                await delay(30); // Small delay to avoid rate limiting
+            } catch (err) {
+                log(`  ❌ ${collection}/${id}: ${err.message}`, true);
+                stats.errors++;
+            }
+        }
+        
+        // ============ TRANSFORM FUNCTIONS ============
+        
+        function transformProduct(product) {
+            // EXACT structure from your HTML for products
+            const result = {
+                name: product.name,
+                price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0
+            };
+            
+            // Add product_code if exists
+            if (product.product_code) {
+                result.product_code = product.product_code;
+            }
+            
+            // Convert timestamp to Firestore Timestamp
+            result.created_at = convertToFirestoreTimestamp(product.created_at);
+            
+            // Optional fields
+            if (product.created_by) result.created_by = product.created_by;
+            if (product.updated_at) result.updated_at = convertToFirestoreTimestamp(product.updated_at);
+            if (product.updated_by) result.updated_by = product.updated_by;
+            
+            return result;
+        }
+        
+        function transformCustomer(customer) {
+            // EXACT structure from your HTML for customers
+            const result = {
+                name: customer.name
+            };
+            
+            // Optional fields (empty strings in your JSON)
+            if (customer.email !== undefined) result.email = customer.email || '';
+            if (customer.phone !== undefined) result.phone = customer.phone || '';
+            
+            // Convert timestamp
+            result.created_at = convertToFirestoreTimestamp(customer.created_at);
+            
+            // Optional
+            if (customer.created_by) result.created_by = customer.created_by;
+            
+            return result;
+        }
+        
+        function transformPurchase(purchase) {
+            // EXACT structure from your HTML for purchases
+            // CRITICAL: product_data must be a STRING (JSON.stringify)
+            
+            let productDataString = '';
+            
+            // Handle product_data - MUST be stringified
+            if (purchase.product_data) {
+                if (typeof purchase.product_data === 'string') {
+                    // Already a string, validate it
+                    try {
+                        JSON.parse(purchase.product_data);
+                        productDataString = purchase.product_data;
+                    } catch (e) {
+                        // Invalid JSON, create empty array string
+                        productDataString = JSON.stringify([]);
+                        log(`  ⚠️ Fixed invalid product_data for ${purchase.id}`, false);
+                    }
+                } else if (Array.isArray(purchase.product_data)) {
+                    // Array needs to be stringified
+                    const cleaned = purchase.product_data.map(item => ({
+                        product_id: item.product_id || item.id,
+                        name: item.name,
+                        price: typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0,
+                        quantity: item.quantity || 1,
+                        subtotal: item.subtotal || (item.price * (item.quantity || 1))
+                    }));
+                    productDataString = JSON.stringify(cleaned);
+                } else {
+                    productDataString = JSON.stringify([]);
+                }
+            } else {
+                productDataString = JSON.stringify([]);
+            }
+            
+            // Build result matching HTML structure
+            const result = {
+                customer_id: purchase.customer_id,
+                customer_name: purchase.customer_name || 'Unknown',
+                product_data: productDataString,  // ← STRING, not array!
+                total_amount: typeof purchase.total_amount === 'number' ? purchase.total_amount : parseFloat(purchase.total_amount) || 0,
+                purchase_date: convertToISOString(purchase.purchase_date),  // ← ISO STRING, not Timestamp!
+                status: purchase.status || 'pending'
+            };
+            
+            // Optional fields from HTML
+            if (purchase.created_by) result.created_by = purchase.created_by;
+            if (purchase.created_by_email) result.created_by_email = purchase.created_by_email;
+            
+            return result;
+        }
+        
+        // ============ HELPER FUNCTIONS ============
+        
+        function convertToFirestoreTimestamp(dateValue) {
+            if (!dateValue) return new Date();
+            
+            // Handle {seconds, nanoseconds} format from your JSON
+            if (typeof dateValue === 'object' && dateValue.seconds !== undefined) {
+                return new Date(dateValue.seconds * 1000);
+            }
+            
+            // Handle ISO string
+            if (typeof dateValue === 'string') {
+                const d = new Date(dateValue);
+                return isNaN(d.getTime()) ? new Date() : d;
+            }
+            
+            // Handle Date object
+            if (dateValue instanceof Date) return dateValue;
+            
+            return new Date();
+        }
+        
+        function convertToISOString(dateValue) {
+            if (!dateValue) return new Date().toISOString();
+            
+            // Handle {seconds, nanoseconds} format
+            if (typeof dateValue === 'object' && dateValue.seconds !== undefined) {
+                return new Date(dateValue.seconds * 1000).toISOString();
+            }
+            
+            // Handle existing ISO string
+            if (typeof dateValue === 'string') {
+                const d = new Date(dateValue);
+                return isNaN(d.getTime()) ? new Date().toISOString() : dateValue;
+            }
+            
+            // Handle Date object
+            if (dateValue instanceof Date) return dateValue.toISOString();
+            
+            return new Date().toISOString();
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // ============ CLEAR DATA ============
+        
+        async function clearFirestore() {
+            if (!confirm('⚠️ DELETE ALL DATA? Type "DELETE" to confirm')) return;
+            if (prompt('Type "DELETE" to confirm:') !== 'DELETE') return alert('Cancelled');
+            
+            document.getElementById('status').innerHTML = '';
+            log('🗑️ Deleting all data...', false);
+            
+            for (const coll of ['products', 'customers', 'purchases']) {
+                let deleted = 0;
+                let snapshot = await db.collection(coll).limit(100).get();
+                
+                while (!snapshot.empty) {
+                    const batch = db.batch();
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    deleted += snapshot.size;
+                    
+                    const last = snapshot.docs[snapshot.docs.length - 1];
+                    snapshot = await db.collection(coll).startAfter(last).limit(100).get();
+                    await delay(100);
+                }
+                log(`  ✅ ${coll}: deleted ${deleted} documents`);
+            }
+            log('✅ All data cleared!');
+        }
+        
+        // Test connection
+        db.collection('products').limit(1).get()
+            .then(() => log('✅ Firebase connected'))
+            .catch(err => log(`❌ Firebase error: ${err.message}`, true));
+    </script>
+</body>
+</html>
